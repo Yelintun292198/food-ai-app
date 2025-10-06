@@ -1,6 +1,11 @@
+git config --global user.name "Yelintun292198"
+git config --global user.email "yelintun512016@gmail.com"
 
-fastapi
-uvicorn[standard]
-sqlalchemy
-pymysql
-python-multipart
+
+
+updating everyday 
+
+cd C:\food-ai-app
+git add .
+git commit -m "update on $(date +%Y-%m-%d)"
+git push origin main
