@@ -1,68 +1,75 @@
 import React from "react";
-import { View, Text, Button, StyleSheet, Image } from "react-native";
+import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons"; // 🆕 For consistent icon set
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
 
   return (
     <View style={styles.container}>
-      {/* 🧠 App title */}
-      <Text style={styles.title}>🍱 Food AI App</Text>
-      <Text style={styles.subtitle}>食べ物を撮ってAIで分析しよう！</Text>
+      {/* 🧠 Header */}
+      <Text style={styles.header}>🍱 Food AI アプリ</Text>
+      <Text style={styles.subText}>AIが料理を認識してレシピを見つけます</Text>
 
-      {/* 🖼️ Optional logo image */}
+      {/* 🖼️ App Logo */}
       <Image
         source={require("../assets/images/icon.png")}
         style={styles.logo}
       />
 
-      {/* 🚀 Navigation buttons */}
-      <View style={styles.buttonGroup}>
-        <Button
-          title="画像を選択して分析する"
-          onPress={() => navigation.navigate("プレビュー画面")}
-          color="#007AFF"
-        />
-      </View>
+      {/* 🆕 Modern navigation buttons (same style as preview.tsx) */}
+      <TouchableOpacity
+        style={[styles.button, styles.blueBtn]}
+        onPress={() => navigation.navigate("プレビュー画面")}
+      >
+        <Ionicons name="camera" size={22} color="#fff" />
+        <Text style={styles.btnText}>画像を選択して分析</Text>
+      </TouchableOpacity>
 
-      <View style={styles.buttonGroup}>
-        <Button
-          title="お気に入り"
-          onPress={() => navigation.navigate("お気に入り画面")}
-          color="#FF9500"
-        />
-      </View>
+      <TouchableOpacity
+        style={[styles.button, styles.orangeBtn]}
+        onPress={() => navigation.navigate("お気に入り画面")}
+      >
+        <Ionicons name="heart" size={22} color="#fff" />
+        <Text style={styles.btnText}>お気に入り</Text>
+      </TouchableOpacity>
 
-      <View style={styles.buttonGroup}>
-        <Button
-          title="履歴"
-          onPress={() => navigation.navigate("履歴画面")}
-          color="#34C759"
-        />
-      </View>
+      <TouchableOpacity
+        style={[styles.button, styles.greenBtn]}
+        onPress={() => navigation.navigate("履歴画面")}
+      >
+        <Ionicons name="time" size={22} color="#fff" />
+        <Text style={styles.btnText}>履歴</Text>
+      </TouchableOpacity>
+
+      {/* 🆕 Footer section for consistency */}
+      <Text style={styles.footerText}>© 2025 SmartChef AI Project</Text>
     </View>
   );
 }
 
-// 🎨 Styles
+// ===========================================================
+// 🎨 Styles — unified with preview.tsx
+// ===========================================================
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
     paddingHorizontal: 20,
+    paddingTop: 70,
   },
-  title: {
-    fontSize: 28,
+  header: {
+    fontSize: 26,
     fontWeight: "bold",
-    marginBottom: 10,
+    marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 16,
+  subText: {
+    fontSize: 14,
     color: "#666",
-    marginBottom: 30,
+    marginBottom: 25,
   },
   logo: {
     width: 180,
@@ -70,8 +77,38 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
     marginBottom: 30,
   },
-  buttonGroup: {
-    marginVertical: 10,
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     width: "80%",
+    paddingVertical: 14,
+    borderRadius: 30,
+    marginVertical: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  btnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+  blueBtn: {
+    backgroundColor: "#007AFF",
+  },
+  orangeBtn: {
+    backgroundColor: "#FF6347",
+  },
+  greenBtn: {
+    backgroundColor: "#34C759",
+  },
+  footerText: {
+    position: "absolute",
+    bottom: 20,
+    fontSize: 12,
+    color: "#aaa",
   },
 });

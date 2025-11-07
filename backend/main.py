@@ -54,49 +54,32 @@ async def predict_food(file: UploadFile = File(...)):
         # ======================================
         # 1️⃣ Predict food name from Hugging Face
         # ======================================
+        hf_url = f"https://api-inference.huggingface.co/models/{HUGGINGFACE_MODEL}"
         headers = {
             "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
             "Content-Type": "image/jpeg",
         }
 
         print("🚀 Sending image to Hugging Face model...")
-        response = requests.post(
-            HUGGINGFACE_MODEL,
-            headers=headers,
-            data=small_image_bytes,  # ✅ send raw bytes
-            timeout=60,
-        )
+        response = requests.post(hf_url, headers=headers, data=small_image_bytes, timeout=60)
+        print("HF response status:", response.status_code)
 
         try:
+
+            print("HF response status:", response.status_code)
+            print("HF raw text:", response.text[:500])
+
             result = response.json()
         except Exception:
             print("❌ Invalid JSON from Hugging Face:", response.text)
             return {"error": "Invalid Hugging Face response", "recipe_found": False}
 
-        print("🧩 Raw Hugging Face response:", result)
-
-        # 🧩 Handle cold start or unexpected result
-        if isinstance(result, dict) and "error" in result:
-            print("⚠️ Hugging Face returned error:", result["error"])
-            if "loading" in result["error"].lower():
-                print("⏳ Model is loading... retrying in 15 seconds...")
-                time.sleep(15)
-                response = requests.post(
-                    HUGGINGFACE_MODEL,
-                    headers=headers,
-                    data=small_image_bytes,
-                    timeout=60,
-                )
-                result = response.json()
-                print("🔁 Retry result:", result)
+        if response.status_code != 200:
+            return {"error": result.get("error", "HF request failed"), "recipe_found": False}
 
         if not isinstance(result, list) or len(result) == 0:
-            print("❌ Invalid Hugging Face response:", result)
             return {"error": "No prediction returned", "recipe_found": False}
 
-        # ======================================
-        # ✅ Extract prediction
-        # ======================================
         food_name = result[0].get("label", "unknown").lower()
         confidence = result[0].get("score", 0)
         print(f"🍣 Predicted food: {food_name} ({confidence:.2f})")
@@ -112,7 +95,6 @@ async def predict_food(file: UploadFile = File(...)):
         search_data = search_res.json()
 
         if not search_data.get("results"):
-            print(f"❌ No recipe found for {food_name}")
             return {
                 "predicted_food": food_name,
                 "confidence": confidence,
@@ -132,9 +114,6 @@ async def predict_food(file: UploadFile = File(...)):
         info_res = requests.get(info_url, timeout=20)
         info_data = info_res.json()
 
-        # ======================================
-        # 4️⃣ Extract key data
-        # ======================================
         recipe = {
             "name": info_data.get("title", "Unknown Recipe"),
             "image": info_data.get("image"),
@@ -149,9 +128,6 @@ async def predict_food(file: UploadFile = File(...)):
             "sourceUrl": info_data.get("sourceUrl"),
         }
 
-        # ======================================
-        # ✅ Final JSON response
-        # ======================================
         return {
             "predicted_food": food_name,
             "confidence": confidence,
@@ -164,9 +140,6 @@ async def predict_food(file: UploadFile = File(...)):
         return {"error": str(e), "recipe_found": False}
 
 
-# ==============================================
-# 🏠 Root route
-# ==============================================
 @app.get("/")
 def home():
     return {"message": "🍣 Spoonacular-powered Food AI backend running!"}

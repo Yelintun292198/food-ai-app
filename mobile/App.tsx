@@ -1,14 +1,14 @@
-import * as React from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import * as React from "react";
 
 // 📱 Screen Imports
+import FavoritesScreen from "./app/favorites";
+import HistoryScreen from "./app/history";
 import HomeScreen from "./app/home";
 import PreviewScreen from "./app/preview";
-import ResultScreen from "./app/result";
 import RecipeScreen from "./app/recipe";
-import HistoryScreen from "./app/history";
-import FavoritesScreen from "./app/favorites";
+import ResultScreen from "./app/result";
 
 // 🧭 Type definition for navigation
 export type RootStackParamList = {
