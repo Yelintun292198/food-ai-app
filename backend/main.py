@@ -1,18 +1,39 @@
+# ==============================================
+# ✅ Load environment variables FIRST
+# ==============================================
+from pathlib import Path
+from dotenv import load_dotenv
+import os
+
+# ✅ Load .env inside backend folder
+env_path = Path(__file__).resolve().parent / ".env"
+print(f"🔍 Loading .env from: {env_path}")
+load_dotenv(dotenv_path=env_path)
+
+
+# Debug check to confirm .env variables are loaded
+print("DEBUG — testing .env load:")
+print("MYSQL_USER =", os.getenv("MYSQL_USER"))
+print("MYSQL_PASSWORD =", os.getenv("MYSQL_PASSWORD"))
+print("MYSQL_DB =", os.getenv("MYSQL_DB"))
+print("MYSQL_HOST =", os.getenv("MYSQL_HOST"))
+
+# ==============================================
+# ✅ Import dependencies AFTER loading .env
+# ==============================================
+from backend import models, database
+from backend.routers import auth
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-import os
 import requests
-import time
-from dotenv import load_dotenv
 from PIL import Image
 from io import BytesIO
 
-# ==============================================
-# ✅ Load environment variables
-# ==============================================
-load_dotenv()
 
-app = FastAPI(title="🍣 Food AI + Spoonacular Backend")
+# ==============================================
+# 🚀 FastAPI app setup
+# ==============================================
+app = FastAPI(title="🍣 Food AI + Spoonacular + Auth Backend")
 
 # ==============================================
 # ✅ CORS Setup
@@ -37,6 +58,16 @@ HUGGINGFACE_MODEL = os.getenv("HUGGINGFACE_MODEL")
 SPOONACULAR_API_KEY = os.getenv("SPOONACULAR_API_KEY")
 
 # ==============================================
+# 🧱 Database setup
+# ==============================================
+models.Base.metadata.create_all(bind=database.engine)
+
+# ==============================================
+# 🧩 Routers
+# ==============================================
+app.include_router(auth.router)
+
+# ==============================================
 # 🧠 Predict + Fetch Recipe
 # ==============================================
 @app.post("/predict")
@@ -54,21 +85,16 @@ async def predict_food(file: UploadFile = File(...)):
         # ======================================
         # 1️⃣ Predict food name from Hugging Face
         # ======================================
-        hf_url = f"https://api-inference.huggingface.co/models/{HUGGINGFACE_MODEL}"
+        hf_url = f"https://router.huggingface.co/hf-inference/models/{HUGGINGFACE_MODEL}"
         headers = {
             "Authorization": f"Bearer {HUGGINGFACE_API_KEY}",
             "Content-Type": "image/jpeg",
         }
-
         print("🚀 Sending image to Hugging Face model...")
         response = requests.post(hf_url, headers=headers, data=small_image_bytes, timeout=60)
         print("HF response status:", response.status_code)
 
         try:
-
-            print("HF response status:", response.status_code)
-            print("HF raw text:", response.text[:500])
-
             result = response.json()
         except Exception:
             print("❌ Invalid JSON from Hugging Face:", response.text)
@@ -140,6 +166,9 @@ async def predict_food(file: UploadFile = File(...)):
         return {"error": str(e), "recipe_found": False}
 
 
+# ==============================================
+# 🏠 Root endpoint
+# ==============================================
 @app.get("/")
 def home():
-    return {"message": "🍣 Spoonacular-powered Food AI backend running!"}
+    return {"message": "🍣 Spoonacular-powered Food AI backend with JWT auth running!"}
