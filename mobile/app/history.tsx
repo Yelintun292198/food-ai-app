@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,104 +6,168 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Alert,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Swipeable } from "react-native-gesture-handler";
+import LottieView from "lottie-react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "../App";
-
-const historyData = [
-  { date: "2025-09-30", name: "カレーライス", image: "https://picsum.photos/100/100?1" },
-  { date: "2025-09-29", name: "ラーメン", image: "https://picsum.photos/100/100?2" },
-  { date: "2025-09-28", name: "寿司", image: "https://picsum.photos/100/100?3" },
-  { date: "2025-09-27", name: "天ぷら", image: "" },
-  { date: "2025-09-26", name: "うどん", image: "https://picsum.photos/100/100?5" },
-];
 
 export default function HistoryScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation();
+  const [history, setHistory] = useState([]);
+
+  const loadHistory = async () => {
+    const stored = JSON.parse(await AsyncStorage.getItem("history")) || [];
+    setHistory(stored);
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", loadHistory);
+    return unsubscribe;
+  }, [navigation]);
+
+  const removeItem = async (name: string) => {
+    const updated = history.filter((item) => item.name !== name);
+    await AsyncStorage.setItem("history", JSON.stringify(updated));
+    setHistory(updated);
+  };
+
+  const clearHistory = () => {
+    Alert.alert(
+      "履歴を削除",
+      "全ての履歴を削除しますか？",
+      [
+        { text: "キャンセル", style: "cancel" },
+        {
+          text: "削除",
+          style: "destructive",
+          onPress: async () => {
+            await AsyncStorage.removeItem("history");
+            setHistory([]);
+          },
+        },
+      ]
+    );
+  };
+
+  const renderRightActions = (name: string) => (
+    <TouchableOpacity
+      style={styles.deleteSwipe}
+      onPress={() => removeItem(name)}
+    >
+      <Ionicons name="trash" size={30} color="#fff" />
+    </TouchableOpacity>
+  );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>履歴画面</Text>
+      <View style={styles.headerRow}>
+        <Text style={styles.title}>履歴</Text>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
-        {historyData.map((item, idx) => (
-          <View key={idx} style={styles.card}>
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.thumb} />
-            ) : (
-              <View style={[styles.thumb, styles.placeholder]}>
-                <Text>🖼</Text>
-              </View>
-            )}
-            <View style={styles.info}>
-              <Text style={styles.date}>日付: {item.date}</Text>
-              <Text style={styles.name}>料理名: {item.name}</Text>
-            </View>
+        {history.length > 0 && (
+          <TouchableOpacity onPress={clearHistory}>
+            <Ionicons name="trash-outline" size={28} color="red" />
+          </TouchableOpacity>
+        )}
+      </View>
 
-            <TouchableOpacity
-              style={styles.detailBtn}
-              onPress={() => navigation.navigate("レシピ画面")}
+      {history.length === 0 ? (
+        <View style={styles.emptyBox}>
+          <LottieView
+            autoPlay
+            loop
+            style={{ width: 180, height: 180 }}
+            source={require("../assets/empty.json")}
+          />
+          <Text style={styles.empty}>まだ履歴がありません</Text>
+        </View>
+      ) : (
+        <ScrollView>
+          {history.map((item, idx) => (
+            <Swipeable
+              key={idx}
+              renderRightActions={() => renderRightActions(item.name)}
             >
-              <Text style={styles.detailText}>詳細</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </ScrollView>
+              <View style={styles.card}>
+                {item.image ? (
+                  <Image source={{ uri: item.image }} style={styles.thumb} />
+                ) : (
+                  <View style={[styles.thumb, styles.placeholder]}>
+                    <Text>🍽️</Text>
+                  </View>
+                )}
 
-      <TouchableOpacity
-        style={styles.homeBtn}
-        onPress={() => navigation.navigate("ホーム画面")}
-      >
-        <Text style={styles.homeText}>ホームに戻る</Text>
-      </TouchableOpacity>
+                <View style={styles.info}>
+                  <Text style={styles.date}>{item.date}</Text>
+                  <Text style={styles.name}>{item.name}</Text>
+                </View>
+
+                <LinearGradient
+                  colors={["#FF7F50", "#FF6347"]}
+                  style={styles.detailBtn}
+                >
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate("レシピ画面", {
+                        recipeName: item.name,
+                      })
+                    }
+                  >
+                    <Ionicons name="arrow-forward" size={22} color="#fff" />
+                  </TouchableOpacity>
+                </LinearGradient>
+              </View>
+            </Swipeable>
+          ))}
+        </ScrollView>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
+  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 20,
+    alignItems: "center",
   },
+  title: { fontSize: 28, fontWeight: "bold" },
+  emptyBox: { justifyContent: "center", alignItems: "center", marginTop: 40 },
+  empty: { color: "#777", fontSize: 16, marginTop: 10 },
+
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 15,
+    backgroundColor: "#fafafa",
+    borderRadius: 18,
+    padding: 14,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
   },
-  thumb: { width: 60, height: 60, borderRadius: 8, backgroundColor: "#eee" },
+  thumb: { width: 70, height: 70, borderRadius: 14 },
   placeholder: { justifyContent: "center", alignItems: "center" },
-  info: { flex: 1, marginLeft: 10 },
-  date: { fontSize: 12, color: "#555" },
-  name: { fontSize: 14, fontWeight: "bold" },
-  detailBtn: {
-    backgroundColor: "#f1f1f1",
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 20,
-  },
-  detailText: { fontSize: 12 },
-  homeBtn: {
-    backgroundColor: "#f5f5f5",
-    padding: 12,
-    borderRadius: 25,
+  info: { flex: 1, marginLeft: 12 },
+  date: { fontSize: 12, color: "#777" },
+  name: { fontSize: 17, fontWeight: "bold" },
+
+  deleteSwipe: {
+    width: 80,
+    backgroundColor: "red",
+    justifyContent: "center",
     alignItems: "center",
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-    width: "90%",
+    borderRadius: 12,
+    marginBottom: 16,
   },
-  homeText: { fontSize: 14, fontWeight: "bold" },
+
+  detailBtn: {
+    padding: 10,
+    borderRadius: 12,
+  },
 });

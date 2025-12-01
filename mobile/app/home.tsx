@@ -1,114 +1,133 @@
-import React from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons"; // 🆕 For consistent icon set
+import React, { useEffect, useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  RefreshControl,
+} from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { getFeed } from "./api/posts";
+
+import FeedPost from "./community/FeedPost";
 
 export default function HomeScreen() {
   const navigation = useNavigation<any>();
+  const [feed, setFeed] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadFeed = async () => {
+    try {
+      const res = await getFeed();
+
+      const updated = res.data.map((p: any) => ({
+        ...p,
+        image_url_full: `https://cautiously-mesocratic-albert.ngrok-free.dev${p.image_url}`,
+      }));
+
+      setFeed(updated);
+    } catch (error) {
+      console.log("Feed load error:", error);
+    }
+  };
+
+  // Refresh when pulling
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadFeed();
+    setRefreshing(false);
+  };
+
+  // Auto refresh when returning from AddPost or Comments
+  useFocusEffect(
+    useCallback(() => {
+      loadFeed();
+    }, [])
+  );
 
   return (
     <View style={styles.container}>
-      {/* 🧠 Header */}
-      <Text style={styles.header}>🍱 Food AI アプリ</Text>
-      <Text style={styles.subText}>AIが料理を認識してレシピを見つけます</Text>
 
-      {/* 🖼️ App Logo */}
-      <Image
-        source={require("../assets/images/icon.png")}
-        style={styles.logo}
-      />
+      {/* HEADER */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>🍱 Food AI アプリ</Text>
 
-      {/* 🆕 Modern navigation buttons (same style as preview.tsx) */}
-      <TouchableOpacity
-        style={[styles.button, styles.blueBtn]}
-        onPress={() => navigation.navigate("プレビュー画面")}
+        {/* Top-right Add Post Button */}
+        <TouchableOpacity onPress={() => navigation.navigate("AddPost")}>
+          <Ionicons name="add-circle-outline" size={32} color="#007AFF" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
-        <Ionicons name="camera" size={22} color="#fff" />
-        <Text style={styles.btnText}>画像を選択して分析</Text>
-      </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[styles.button, styles.orangeBtn]}
-        onPress={() => navigation.navigate("お気に入り画面")}
-      >
-        <Ionicons name="heart" size={22} color="#fff" />
-        <Text style={styles.btnText}>お気に入り</Text>
-      </TouchableOpacity>
+        {/* AI RECOMMENDATIONS */}
+        <Text style={styles.sectionTitle}>🤖 今日のおすすめ</Text>
 
-      <TouchableOpacity
-        style={[styles.button, styles.greenBtn]}
-        onPress={() => navigation.navigate("履歴画面")}
-      >
-        <Ionicons name="time" size={22} color="#fff" />
-        <Text style={styles.btnText}>履歴</Text>
-      </TouchableOpacity>
+        <View style={styles.recommendBox}>
+          <Text style={{ color: "#666", fontSize: 13 }}>
+            ※ AI おすすめ機能は現在準備中です
+          </Text>
+        </View>
 
-      {/* 🆕 Footer section for consistency */}
-      <Text style={styles.footerText}>© 2025 SmartChef AI Project</Text>
+        {/* COMMUNITY FEED */}
+        <Text style={styles.sectionTitle}>🔥 コミュニティ投稿</Text>
+
+        {feed.length === 0 ? (
+          <Text style={styles.emptyText}>投稿がありません</Text>
+        ) : (
+          feed.map((post: any) => (
+            <FeedPost key={post.id} post={post} navigation={navigation} />
+          ))
+        )}
+
+      </ScrollView>
     </View>
   );
 }
 
-// ===========================================================
-// 🎨 Styles — unified with preview.tsx
-// ===========================================================
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingTop: 70,
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+
   header: {
-    fontSize: 26,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  subText: {
-    fontSize: 14,
-    color: "#666",
-    marginBottom: 25,
-  },
-  logo: {
-    width: 180,
-    height: 180,
-    resizeMode: "contain",
-    marginBottom: 30,
-  },
-  button: {
+    marginTop: 60, // Safe area
+    paddingHorizontal: 20,
+    paddingBottom: 12,
     flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
-    width: "80%",
-    paddingVertical: 14,
-    borderRadius: 30,
-    marginVertical: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 3,
   },
-  btnText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
+
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: "700",
   },
-  blueBtn: {
-    backgroundColor: "#007AFF",
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginTop: 25,
+    marginLeft: 20,
   },
-  orangeBtn: {
-    backgroundColor: "#FF6347",
+
+  recommendBox: {
+    marginTop: 10,
+    marginHorizontal: 20,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: "#f2f2f7",
   },
-  greenBtn: {
-    backgroundColor: "#34C759",
-  },
-  footerText: {
-    position: "absolute",
-    bottom: 20,
-    fontSize: 12,
-    color: "#aaa",
+
+  emptyText: {
+    textAlign: "center",
+    color: "#777",
+    marginTop: 15,
+    fontSize: 14,
   },
 });

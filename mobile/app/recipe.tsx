@@ -1,4 +1,3 @@
-// 🍳 Final Clean Recipe Screen (no undefined text, elegant layout)
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import React, { useEffect, useState } from "react";
@@ -16,53 +15,61 @@ import TypingText from "../components/TypingText";
 
 export default function RecipeScreen({ route }) {
   const recipe = route?.params?.recipe;
+
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // 🧩 Check favorite status
+  // ❤️ Check favorite
   useEffect(() => {
-    const checkFavorite = async () => {
+    const load = async () => {
       const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
-      const found = stored.some((item) => item.name === recipe.name);
+      const found = stored.some(
+        (item) => item.name_jp === recipe?.name_jp
+      );
       setIsFavorite(found);
     };
-    if (recipe) checkFavorite();
+
+    if (recipe) load();
   }, [recipe]);
 
   // ❤️ Toggle favorite
   const toggleFavorite = async () => {
-    try {
-      const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
-      let updated;
-      if (isFavorite) {
-        updated = stored.filter((r) => r.name !== recipe.name);
-      } else {
-        updated = [...stored, recipe];
-      }
-      await AsyncStorage.setItem("favorites", JSON.stringify(updated));
-      setIsFavorite(!isFavorite);
-    } catch (e) {
-      console.error(e);
+    const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
+    let updated;
+
+    if (isFavorite) {
+      updated = stored.filter((r) => r.name_jp !== recipe.name_jp);
+    } else {
+      updated = [...stored, recipe];
     }
+
+    await AsyncStorage.setItem("favorites", JSON.stringify(updated));
+    setIsFavorite(!isFavorite);
   };
 
-  // 🧼 Clean unwanted "undefined" and fix formatting
-  const cleanText = (text: string) => {
+  // 🧹 CLEAN HTML + MAKE BULLETS
+  const clean = (text: string) => {
     if (!text) return "";
-    return text
-      .replace(/undefined/gi, " ") // remove all 'undefined'
-      .replace(/\s{2,}/g, " ")     // collapse extra spaces
-      .replace(/\.+/g, ".")        // fix multiple dots
-      .replace(/\n+/g, "\n")       // normalize line breaks
-      .trim();
+
+    let cleaned = text;
+
+    // Convert <li> items to bullet points
+    cleaned = cleaned.replace(/<li>/g, "• ");
+    cleaned = cleaned.replace(/<\/li>/g, "\n");
+
+    // Remove all other HTML tags
+    cleaned = cleaned.replace(/<\/?[^>]+(>|$)/g, "");
+
+    // Remove extra newlines
+    cleaned = cleaned.replace(/\n{2,}/g, "\n");
+
+    return cleaned.trim();
   };
 
-  // 🚨 No recipe case
   if (!recipe) {
     return (
       <GlobalWrapper>
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>⚠️ No recipe data found.</Text>
-          <Text style={styles.errorText}>Please go back and try again.</Text>
         </View>
       </GlobalWrapper>
     );
@@ -71,44 +78,47 @@ export default function RecipeScreen({ route }) {
   return (
     <GlobalWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* 🧁 Food Image + Title */}
+        {/* Image + Title */}
         <View style={styles.card}>
           <Image source={{ uri: recipe.image }} style={styles.image} />
+
           <View style={styles.titleRow}>
-            <Text style={styles.title}>{recipe.name}</Text>
+            <Text style={styles.title}>
+              {recipe.name_jp || recipe.name_en || "料理名不明"}
+            </Text>
+
             <TouchableOpacity onPress={toggleFavorite}>
               <Ionicons
                 name={isFavorite ? "heart" : "heart-outline"}
                 size={28}
-                color={isFavorite ? "#FF7043" : "gray"}
+                color={isFavorite ? "red" : "gray"}
               />
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* 🍴 Ingredients Section */}
-        <Text style={styles.sectionTitle}>🍴 Ingredients</Text>
+        {/* Ingredients */}
+        <Text style={styles.sectionTitle}>🍴 材料</Text>
+
         <View style={styles.ingredientsBox}>
-          {recipe.ingredients
-            .filter(
-              (item) =>
-                item.ingredient &&
-                item.ingredient !== "undefined" &&
-                item.measure !== "undefined"
-            )
-            .map((item, index) => (
+          {(recipe.ingredients_jp || []).map(
+            (item: string, index: number) => (
               <Text key={index} style={styles.ingredientItem}>
-                • {cleanText(item.ingredient)} ({cleanText(item.measure)})
+                • {item}
               </Text>
-            ))}
+            )
+          )}
         </View>
 
-        {/* 🧑‍🍳 Instructions Section */}
-        <Text style={styles.sectionTitle}>🧑‍🍳 Instructions</Text>
-        <TypingText text={cleanText(recipe.instructions)} />
+        {/* Instructions */}
+        <Text style={styles.sectionTitle}>🧑‍🍳 作り方</Text>
 
-        {/* 🔗 Source link */}
-        {recipe.sourceUrl && (
+        <TypingText
+          text={clean(recipe.instructions_jp || recipe.instructions_en)}
+        />
+
+        {/* Source URL */}
+        {!!recipe.sourceUrl && (
           <Text
             style={styles.link}
             onPress={() => Linking.openURL(recipe.sourceUrl)}
@@ -121,14 +131,11 @@ export default function RecipeScreen({ route }) {
   );
 }
 
-// 🎨 Styles
+// Styles
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FFF",
     borderRadius: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
     marginBottom: 16,
     overflow: "hidden",
   },
@@ -143,7 +150,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "bold",
     flex: 1,
     color: "#333",
@@ -155,24 +162,20 @@ const styles = StyleSheet.create({
     color: "#FF7043",
   },
   ingredientsBox: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 12,
+    backgroundColor: "#FFF",
     padding: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
+    borderRadius: 12,
     marginBottom: 16,
   },
   ingredientItem: {
     fontSize: 16,
+    marginVertical: 4,
     lineHeight: 24,
-    color: "#333",
-    marginVertical: 2,
   },
   link: {
-    fontSize: 18,
     color: "#4285F4",
-    marginTop: 24,
+    fontSize: 18,
+    marginTop: 20,
     textDecorationLine: "underline",
   },
   errorContainer: {
@@ -180,5 +183,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
-  errorText: { fontSize: 18, color: "red", marginBottom: 10 },
+  errorText: { fontSize: 18, color: "red" },
 });

@@ -1,107 +1,114 @@
-import React from "react";
-import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  Image,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Alert,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "../App";
-
-const favorites = [
-  { name: "カレーライス", image: "https://picsum.photos/150/150?1" },
-  { name: "ラーメン", image: "https://picsum.photos/150/150?2" },
-  { name: "寿司", image: "https://picsum.photos/150/150?3" },
-  { name: "天ぷら", image: "" },
-];
+import { Ionicons } from "@expo/vector-icons";
 
 export default function FavoritesScreen() {
-  const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation();
+  const [favorites, setFavorites] = useState([]);
+
+  const loadFavorites = async () => {
+    const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
+    setFavorites(stored);
+  };
+
+  const removeFavorite = async (name: string) => {
+    const updated = favorites.filter((item) => item.name !== name);
+    await AsyncStorage.setItem("favorites", JSON.stringify(updated));
+    setFavorites(updated);
+  };
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("focus", loadFavorites);
+    return unsubscribe;
+  }, [navigation]);
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>お気に入り画面</Text>
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>お気に入り</Text>
 
-      <View style={styles.grid}>
-        {favorites.map((item, idx) => (
+      {favorites.length === 0 ? (
+        <Text style={styles.empty}>お気に入りがまだありません</Text>
+      ) : (
+        favorites.map((item, idx) => (
           <View key={idx} style={styles.card}>
-            {item.image ? (
-              <Image source={{ uri: item.image }} style={styles.image} />
-            ) : (
-              <View style={[styles.image, styles.placeholder]}>
-                <Text>🖼</Text>
-              </View>
-            )}
+            <Image source={{ uri: item.image }} style={styles.image} />
             <Text style={styles.name}>{item.name}</Text>
 
-            <TouchableOpacity
-              style={styles.recipeBtn}
-              onPress={() => navigation.navigate("レシピ画面")}
-            >
-              <Text style={styles.recipeText}>レシピを見る</Text>
-            </TouchableOpacity>
-          </View>
-        ))}
-      </View>
+            <View style={styles.row}>
+              <TouchableOpacity
+                style={styles.recipeBtn}
+                onPress={() =>
+                  navigation.navigate("レシピ画面", { recipe: item })
+                }
+              >
+                <Text style={styles.recipeText}>レシピを見る</Text>
+              </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.homeBtn}
-        onPress={() => navigation.navigate("ホーム画面")}
-      >
-        <Text style={styles.homeText}>ホームに戻る</Text>
-      </TouchableOpacity>
-    </View>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() =>
+                  Alert.alert("削除しますか？", item.name, [
+                    { text: "キャンセル" },
+                    { text: "削除", style: "destructive", onPress: () => removeFavorite(item.name) },
+                  ])
+                }
+              >
+                <Ionicons name="trash" size={22} color="white" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ))
+      )}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 50,
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-  },
+  container: { backgroundColor: "#fff", flex: 1, padding: 20 },
+  title: { fontSize: 26, fontWeight: "bold", marginBottom: 20 },
+  empty: { textAlign: "center", color: "#777", marginTop: 20 },
+
   card: {
-    width: "48%",
-    backgroundColor: "#f9f9f9",
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 15,
+    backgroundColor: "#fafafa",
+    marginBottom: 20,
+    padding: 14,
+    borderRadius: 16,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 5,
+  },
+  image: { width: 140, height: 140, borderRadius: 14 },
+  name: { fontSize: 18, fontWeight: "bold", marginVertical: 10 },
+
+  row: {
+    flexDirection: "row",
+    marginTop: 10,
     alignItems: "center",
   },
-  image: {
-    width: 100,
-    height: 100,
-    borderRadius: 10,
-    marginBottom: 8,
-    backgroundColor: "#eee",
-  },
-  placeholder: { justifyContent: "center", alignItems: "center" },
-  name: { fontSize: 14, fontWeight: "bold", marginBottom: 6 },
+
   recipeBtn: {
-    backgroundColor: "#000",
-    paddingVertical: 6,
-    paddingHorizontal: 20,
+    backgroundColor: "#007AFF",
     borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    marginRight: 10,
   },
-  recipeText: { color: "#fff", fontSize: 12 },
-  homeBtn: {
-    backgroundColor: "#f5f5f5",
-    padding: 12,
-    borderRadius: 25,
-    alignItems: "center",
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-    width: "90%",
+  recipeText: { color: "white", fontWeight: "bold" },
+
+  deleteBtn: {
+    backgroundColor: "red",
+    padding: 10,
+    borderRadius: 50,
   },
-  homeText: { fontSize: 14, fontWeight: "bold" },
 });
