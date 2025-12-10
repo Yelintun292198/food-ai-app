@@ -2,8 +2,8 @@ import os
 import uuid
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse
-from backend.database import get_db
-from backend import models
+from database import get_db
+import models
 
 router = APIRouter()
 

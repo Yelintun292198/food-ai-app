@@ -1,12 +1,9 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { Ionicons } from "@expo/vector-icons";
 
-// Tabs (with bottom bar)
 import HomeScreen from "../app/home";
 import PreviewScreen from "../app/preview";
-import ResultScreen from "../app/result";
-import RecipeScreen from "../app/recipe";
 import SettingsScreen from "../app/settings";
 
 const Tab = createBottomTabNavigator();
@@ -15,47 +12,24 @@ export default function TabsNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
+        tabBarActiveTintColor: "#FF7043",
+        tabBarInactiveTintColor: "#999",
         headerShown: false,
-        tabBarActiveTintColor: "#ff9500",
-        tabBarInactiveTintColor: "gray",
+
         tabBarIcon: ({ color, size }) => {
-          let icon = "ellipse";
+          let iconName;
 
-          switch (route.name) {
-            case "Home":
-              icon = "home";
-              break;
-            case "プレビュー画面":
-              icon = "camera";
-              break;
-            case "結果画面":
-              icon = "analytics";
-              break;
-            case "レシピ画面":
-              icon = "book";
-              break;
-            case "Settings":
-              icon = "settings";
-              break;
-          }
+          if (route.name === "Home") iconName = "home";
+          else if (route.name === "Scan") iconName = "camera";
+          else if (route.name === "Settings") iconName = "settings";
 
-          return <Ionicons name={icon} size={22} color={color} />;
-        },
-        tabBarStyle: {
-          height: 60,
-          paddingBottom: 5,
-        },
-        tabBarLabelStyle: {
-          fontSize: 12,
-          marginBottom: 5,
+          return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="プレビュー画面" component={PreviewScreen} />
-      <Tab.Screen name="結果画面" component={ResultScreen} />
-      <Tab.Screen name="レシピ画面" component={RecipeScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: "ホーム" }} />
+      <Tab.Screen name="Scan" component={PreviewScreen} options={{ tabBarLabel: "スキャン" }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: "設定" }} />
     </Tab.Navigator>
   );
 }

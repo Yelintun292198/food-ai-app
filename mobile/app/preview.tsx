@@ -72,7 +72,7 @@ export default function PreviewScreen() {
     try {
       const filename = imageUri.split("/").pop() || "photo.jpg";
       const match = /\.(\w+)$/.exec(filename);
-      const type = match ? `image/${match[1]}` : `image/jpeg`;
+      const type = match ? `image/${match[1]}` : "image/jpeg";
 
       const formData = new FormData();
       formData.append("file", {
@@ -81,31 +81,34 @@ export default function PreviewScreen() {
         type,
       } as any);
 
-      const res = await axios({
-        method: "post",
-        url: `${API_URL}/predict`,
-        data: formData,
+      console.log("📤 Sending to backend:", `${API_URL}/predict`);
+
+      const res = await axios.post(`${API_URL}/predict`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
-        transformRequest: (data) => data,
         timeout: 60000,
       });
 
       const data = res.data;
       console.log("📥 Backend returned:", data);
 
-      // Normalize
+      if (!data || data.error) {
+        Alert.alert("Error", "AI分析に失敗しました。");
+        setLoading(false);
+        return;
+      }
+
+      // Normalize for frontend
       const normalized = {
         predicted_food_jp: data.predicted_food_jp || "不明",
         predicted_food_en: data.predicted_food_en || "",
         confidence: data.confidence || 0,
-        top3: data.top3 || [],
-        image: imageUri,
         recipe: data.recipe || null,
+        image: imageUri,
       };
 
       console.log("📦 Normalized:", normalized);
 
-      // Save history
+      // HISTORY SAVE
       const newItem = {
         date: new Date().toISOString().split("T")[0],
         name: normalized.predicted_food_jp,
@@ -115,25 +118,18 @@ export default function PreviewScreen() {
 
       const oldHistory =
         JSON.parse(await AsyncStorage.getItem("history")) || [];
+
       await AsyncStorage.setItem(
         "history",
         JSON.stringify([newItem, ...oldHistory])
       );
 
-      // ⛔ DO NOT navigate directly to レシピ画面
-
-      // ✔ ALWAYS go to ResultScreen
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "結果画面",
-            params: {
-              result: normalized,
-            },
-          },
-        ],
+      // ⭐ FIXED: navigate to correct screen → "Result"
+      navigation.navigate("Result", {
+        result: normalized,
+        fallbackImage: normalized.image,
       });
+
     } catch (error) {
       console.error("❌ Error analyzing:", error);
       Alert.alert(
@@ -187,28 +183,59 @@ export default function PreviewScreen() {
 
 // styles unchanged...
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", alignItems: "center", paddingHorizontal: 20, paddingTop: 70 },
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 70,
+  },
   header: { fontSize: 24, fontWeight: "bold", marginBottom: 6 },
   subText: { fontSize: 14, color: "#666", marginBottom: 20 },
   previewBox: {
-    width: 280, height: 280, backgroundColor: "#fafafa", borderRadius: 20,
-    justifyContent: "center", alignItems: "center", borderWidth: 1,
-    borderColor: "#eee", marginBottom: 25,
+    width: 280,
+    height: 280,
+    backgroundColor: "#fafafa",
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#eee",
+    marginBottom: 25,
   },
   image: { width: "100%", height: "100%", borderRadius: 20 },
   pickBtn: {
-    flexDirection: "row", alignItems: "center", backgroundColor: "#007AFF",
-    paddingVertical: 12, paddingHorizontal: 30, borderRadius: 30, marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#007AFF",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    marginBottom: 10,
   },
   cameraBtn: {
-    flexDirection: "row", alignItems: "center", backgroundColor: "#ffaa00",
-    paddingVertical: 12, paddingHorizontal: 30, borderRadius: 30, marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ffaa00",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 30,
+    marginBottom: 10,
   },
   analyzeBtn: {
-    flexDirection: "row", alignItems: "center", backgroundColor: "#FF6347",
-    paddingVertical: 12, paddingHorizontal: 30, borderRadius: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF6347",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 30,
   },
-  btnText: { color: "#fff", fontSize: 16, fontWeight: "600", marginLeft: 8 },
+  btnText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
   loadingBox: { flexDirection: "row", alignItems: "center", marginTop: 20 },
   loadingText: { fontSize: 16, marginLeft: 10, color: "#FF6347" },
 });

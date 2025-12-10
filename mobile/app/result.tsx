@@ -5,6 +5,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
@@ -12,16 +13,18 @@ import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../App";
 
-type ResultScreenRouteProp = RouteProp<RootStackParamList, "結果画面">;
+// ⭐ FIX: Use "Result" (not 結果画面)
+type ResultScreenRouteProp = RouteProp<RootStackParamList, "Result">;
 
 export default function ResultScreen() {
+  // ⭐ FIX: navigation uses real English route names ("Home", "Recipe", "Result")
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<ResultScreenRouteProp>();
 
+  const route = useRoute<ResultScreenRouteProp>();
   const result = route.params?.result;
 
-  console.log("📌 RESULT FROM BACKEND =", result);
+  console.log("📌 RESULT =", result);
 
   if (!result) {
     return (
@@ -30,6 +33,19 @@ export default function ResultScreen() {
       </View>
     );
   }
+
+  // ⭐ FIX: Unified recipe open handler
+  const openRecipe = () => {
+    if (!result.recipe) {
+      Alert.alert("エラー", "レシピが見つかりませんでした。");
+      return;
+    }
+
+    navigation.navigate("Recipe", {
+      recipe: result.recipe,
+      fallbackImage: result.image,
+    });
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -50,28 +66,16 @@ export default function ResultScreen() {
         </Text>
       </View>
 
-      {/* BUTTON: GO TO RECIPE SCREEN */}
-      <TouchableOpacity
-        style={[styles.button, styles.orangeBtn]}
-        onPress={() => {
-          if (!result.recipe) {
-            alert("レシピが見つかりませんでした。");
-            return;
-          }
-
-          navigation.navigate("レシピ画面", {
-            recipe: result.recipe,
-            fallbackImage: result.image,
-          });
-        }}
-      >
+      {/* ⭐ FIXED BUTTON: open Recipe screen */}
+      <TouchableOpacity style={[styles.button, styles.orangeBtn]} onPress={openRecipe}>
         <Ionicons name="book" size={20} color="#fff" />
         <Text style={styles.btnText}>レシピを見る</Text>
       </TouchableOpacity>
 
+      {/* ⭐ FIXED BUTTON: return to Home */}
       <TouchableOpacity
         style={[styles.button, styles.blueBtn]}
-        onPress={() => navigation.navigate("ホーム画面")}
+        onPress={() => navigation.navigate("Home")}
       >
         <Ionicons name="home" size={20} color="#fff" />
         <Text style={styles.btnText}>ホームに戻る</Text>
@@ -91,6 +95,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     paddingHorizontal: 20,
   },
+
   header: { fontSize: 24, fontWeight: "bold", marginBottom: 6 },
   subText: { fontSize: 14, color: "#666", marginBottom: 20 },
 

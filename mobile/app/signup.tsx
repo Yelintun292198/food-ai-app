@@ -13,7 +13,6 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-// 🧭 Dynamic API URL (works with .env or fallback)
 const API_URL =
   (process.env.EXPO_PUBLIC_API_URL ||
     "https://cautiously-mesocratic-albert.ngrok-free.dev").replace(/\/$/, "");
@@ -40,17 +39,29 @@ export default function SignUpScreen() {
 
     setLoading(true);
     try {
+      console.log("Sending JSON:", { name: username, email, password });
       const res = await fetch(`${API_URL}/api/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, email, password }),
+        body: JSON.stringify({ name: username, email, password }),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
-        Alert.alert("登録完了", "ログイン画面に戻ります");
-        navigation.navigate("ログイン画面");
+        // MUST return user_id from backend
+        const newUserId = data.user_id;
+
+        if (!newUserId) {
+          Alert.alert("エラー", "user_id が返されていません (バックエンドを確認してください)");
+          return;
+        }
+
+        // 👉 Go to Category Screen after signup
+        navigation.navigate("SignupCategoryScreen", {
+          userId: newUserId,
+        });
       } else {
-        const data = await res.json();
         Alert.alert("登録失敗", data.detail || "登録に失敗しました");
       }
     } catch (err) {
@@ -67,7 +78,7 @@ export default function SignUpScreen() {
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.container}>
-          <Text style={styles.title}>🎉 新規登録</Text>
+          <Text style={styles.title}> 新規登録</Text>
 
           <Text style={styles.label}>ユーザー名</Text>
           <TextInput
@@ -107,7 +118,7 @@ export default function SignUpScreen() {
           <View style={{ marginTop: 20 }}>
             <Button
               title="ログイン画面に戻る"
-              onPress={() => navigation.navigate("ログイン画面")}
+              onPress={() => navigation.navigate("Login")}
               color="#888"
             />
           </View>

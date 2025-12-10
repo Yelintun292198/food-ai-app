@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 import requests
 
-from backend.database import get_db
-from backend.models import Users
+from database import get_db
+from models import Users
 
 router = APIRouter(prefix="/api", tags=["Google Auth"])
 

@@ -13,12 +13,13 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import * as AuthSession from "expo-auth-session";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Google from "expo-auth-session/providers/google";
+import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 WebBrowser.maybeCompleteAuthSession();
 
-// ⭐ Your API URL (ngrok)
+// ⭐ Your backend URL
 const API_URL = "https://cautiously-mesocratic-albert.ngrok-free.dev";
 
 export default function LoginScreen() {
@@ -28,25 +29,23 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // ⭐ Google OAuth Config (Correct for Expo Go)
+  // ⭐ Google OAuth configuration
   const [request, response, promptAsync] = Google.useAuthRequest(
     {
       iosClientId:
         "182333209636-n2h0rqca8ve59qqfadegf0o63qacki40.apps.googleusercontent.com",
       androidClientId:
         "182333209636-rb90shigli8gkarn9l5hn3rgb0njl9rr.apps.googleusercontent.com",
-      webClientId:
+      expoClientId:
         "182333209636-qfto1k7ijvea0bvcnq9r527v8mf3lahu.apps.googleusercontent.com",
     },
     {
-      useProxy: true, // ⭐ FORCE Expo to use https://auth.expo.io redirect
-      redirectUri: AuthSession.makeRedirectUri({
-        useProxy: true,
-      }),
+      useProxy: true,
+      redirectUri: AuthSession.makeRedirectUri({ useProxy: true }),
     }
   );
 
-  // ⭐ DEBUG — What redirect URI is Expo actually using?
+  // Debug redirect URL
   useEffect(() => {
     console.log(
       "🔥 Redirect URI from Expo:",
@@ -54,7 +53,7 @@ export default function LoginScreen() {
     );
   }, []);
 
-  // ⭐ Handle Google Auth Response
+  // Handle Google login
   useEffect(() => {
     if (response?.type === "success") {
       const accessToken = response.authentication?.accessToken;
@@ -64,10 +63,10 @@ export default function LoginScreen() {
     }
   }, [response]);
 
-  // ⭐ Send Google access_token to FastAPI backend
+  // ⭐ Send Google OAuth token to backend
   const handleGoogleLogin = async (accessToken: string) => {
     try {
-      const res = await fetch(`${API_URL}/api/google`, {
+      const res = await fetch(`${API_URL}/auth/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ access_token: accessToken }),
@@ -76,21 +75,32 @@ export default function LoginScreen() {
       const data = await res.json();
 
       if (res.ok) {
-        Alert.alert("ログイン成功", `${data.user.name} さんようこそ！`);
+        // ⭐ Save user object in AsyncStorage
+        await AsyncStorage.setItem(
+          "user",
+          JSON.stringify({
+            name: data.name,
+            access_token: data.access_token,
+            email: data.email || null,
+          })
+        );
+
+        Alert.alert("ログイン成功", `${data.name} さんようこそ！`);
 
         navigation.reset({
-          index: 0,
-          routes: [{ name: "MainTabs" }],
-        });
+        index: 0,
+        routes: [{ name: "Tabs" }],
+          });
+
       } else {
-        Alert.alert("エラー", data.detail || "Google ログインに失敗しました。");
+        Alert.alert("ログイン失敗", data.detail || "Google ログインに失敗しました");
       }
     } catch (err) {
-      Alert.alert("エラー", "サーバー通信に失敗しました。");
+      Alert.alert("エラー", "Google ログイン通信エラー");
     }
   };
 
-  // ⭐ Email & Password Login
+  // ⭐ Email login method
   const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert("入力エラー", "メールアドレスとパスワードを入力してください");
@@ -109,13 +119,24 @@ export default function LoginScreen() {
       const data = await res.json();
 
       if (res.ok) {
-        Alert.alert("ログイン成功", "ようこそ！");
+        // ⭐ Backend returns: { access_token, name }
+        await AsyncStorage.setItem(
+          "user",
+          JSON.stringify({
+            name: data.name,
+            access_token: data.access_token,
+            email: email,
+          })
+        );
+
+        Alert.alert("ログイン成功", `${data.name} さんようこそ！`);
+
         navigation.reset({
           index: 0,
-          routes: [{ name: "MainTabs" }],
+          routes: [{ name: "Tabs" }],
         });
       } else {
-        Alert.alert("ログイン失敗", data.detail);
+        Alert.alert("ログイン失敗", data.detail || "ログインに失敗しました");
       }
     } catch (err) {
       Alert.alert("エラー", "通信に失敗しました");
@@ -146,9 +167,9 @@ export default function LoginScreen() {
           <TextInput
             style={styles.input}
             placeholder="●●●●●●"
+            secureTextEntry
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
           />
 
           <Button
@@ -160,7 +181,6 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={styles.googleButton}
             onPress={() => promptAsync()}
-            disabled={!request}
           >
             <Text style={styles.googleText}>Google でログイン</Text>
           </TouchableOpacity>
@@ -168,7 +188,7 @@ export default function LoginScreen() {
           <View style={{ marginTop: 20 }}>
             <Button
               title="新規登録はこちら"
-              onPress={() => navigation.navigate("新規登録画面")}
+              onPress={() => navigation.navigate("Signup")}
               color="#888"
             />
           </View>

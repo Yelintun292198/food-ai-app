@@ -1,133 +1,147 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
+  ActivityIndicator,
+  StyleSheet,
   ScrollView,
   TouchableOpacity,
-  StyleSheet,
-  RefreshControl,
+  Image,
 } from "react-native";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { useNavigation, useFocusEffect } from "@react-navigation/native";
-import { getFeed } from "./api/posts";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import FeedPost from "./community/FeedPost";
+const API_URL = "https://cautiously-mesocratic-albert.ngrok-free.dev";
 
-export default function HomeScreen() {
-  const navigation = useNavigation<any>();
-  const [feed, setFeed] = useState([]);
-  const [refreshing, setRefreshing] = useState(false);
+export default function HomeScreen({ navigation }) {
+  const [loading, setLoading] = useState(true);
+  const [foods, setFoods] = useState([]);
 
-  const loadFeed = async () => {
+  useEffect(() => {
+    loadRecommendations();
+  }, []);
+
+  // -------------------------------------------------------
+  // ⭐ Load recommended foods based on user.favorite_foods
+  // -------------------------------------------------------
+  const loadRecommendations = async () => {
     try {
-      const res = await getFeed();
+      const storedUser = await AsyncStorage.getItem("user");
+      console.log("🔵 STORED USER:", storedUser);
 
-      const updated = res.data.map((p: any) => ({
-        ...p,
-        image_url_full: `https://cautiously-mesocratic-albert.ngrok-free.dev${p.image_url}`,
-      }));
+      if (!storedUser) {
+        console.log("User not logged in");
+        setLoading(false);
+        return;
+      }
 
-      setFeed(updated);
-    } catch (error) {
-      console.log("Feed load error:", error);
+      const user = JSON.parse(storedUser);
+
+      if (!user.name) {
+        console.log("⚠️ No user.name found");
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/recommendations/name/${user.name}`);
+      const data = await res.json();
+
+      console.log("📌 RESULT FROM BACKEND =", data);
+
+      if (data.items) {
+        setFoods(data.items);
+      }
+    } catch (e) {
+      console.log("ERROR loading recommendations:", e);
     }
+
+    setLoading(false);
   };
 
-  // Refresh when pulling
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadFeed();
-    setRefreshing(false);
+  // -------------------------------------------------------
+  // ⭐ FIXED: Navigation to Recipe screen
+  // -------------------------------------------------------
+  const openRecipe = (foodName) => {
+    console.log("➡️ Navigating to Recipe:", foodName);
+
+    if (!foodName) {
+      console.log("❌ No foodName provided!");
+      return;
+    }
+
+    navigation.navigate("Recipe", { recipeName: foodName });
   };
 
-  // Auto refresh when returning from AddPost or Comments
-  useFocusEffect(
-    useCallback(() => {
-      loadFeed();
-    }, [])
-  );
-
-  return (
-    <View style={styles.container}>
-
-      {/* HEADER */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🍱 Food AI アプリ</Text>
-
-        {/* Top-right Add Post Button */}
-        <TouchableOpacity onPress={() => navigation.navigate("AddPost")}>
-          <Ionicons name="add-circle-outline" size={32} color="#007AFF" />
-        </TouchableOpacity>
+  // -------------------------------------------------------
+  // Loading Screen
+  // -------------------------------------------------------
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#FF6347" />
       </View>
+    );
+  }
 
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100 }}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
+  // -------------------------------------------------------
+  // Main UI
+  // -------------------------------------------------------
+  return (
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>あなたへのおすすめ</Text>
 
-        {/* AI RECOMMENDATIONS */}
-        <Text style={styles.sectionTitle}>🤖 今日のおすすめ</Text>
+      {foods.length === 0 && (
+        <Text style={styles.noResults}>おすすめの料理がありません。</Text>
+      )}
 
-        <View style={styles.recommendBox}>
-          <Text style={{ color: "#666", fontSize: 13 }}>
-            ※ AI おすすめ機能は現在準備中です
-          </Text>
-        </View>
+      {foods.map((item, index) => (
+        <TouchableOpacity
+          key={index}
+          style={styles.card}
+          onPress={() => openRecipe(item.name)} // ⭐ safe navigation
+        >
+          {item.image ? (
+            <Image source={{ uri: item.image }} style={styles.image} />
+          ) : (
+            <View style={styles.placeholder}>
+              <Text style={{ color: "#aaa" }}>No Image</Text>
+            </View>
+          )}
 
-        {/* COMMUNITY FEED */}
-        <Text style={styles.sectionTitle}>🔥 コミュニティ投稿</Text>
-
-        {feed.length === 0 ? (
-          <Text style={styles.emptyText}>投稿がありません</Text>
-        ) : (
-          feed.map((post: any) => (
-            <FeedPost key={post.id} post={post} navigation={navigation} />
-          ))
-        )}
-
-      </ScrollView>
-    </View>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   );
 }
 
+// -------------------------------------------------------
+// Styles
+// -------------------------------------------------------
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
-
-  header: {
-    marginTop: 60, // Safe area
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    flexDirection: "row",
-    justifyContent: "space-between",
+  container: { flex: 1, padding: 16 },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
+  noResults: {
+    textAlign: "center",
+    marginTop: 20,
+    fontSize: 16,
+    color: "#555",
+  },
+  card: {
+    backgroundColor: "#fff",
+    padding: 12,
+    marginBottom: 12,
+    borderRadius: 10,
+    elevation: 2,
+  },
+  image: { width: "100%", height: 150, borderRadius: 8 },
+  placeholder: {
+    width: "100%",
+    height: 150,
+    borderRadius: 8,
+    backgroundColor: "#f0f0f0",
+    justifyContent: "center",
     alignItems: "center",
   },
-
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: "700",
-  },
-
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: 25,
-    marginLeft: 20,
-  },
-
-  recommendBox: {
-    marginTop: 10,
-    marginHorizontal: 20,
-    padding: 16,
-    borderRadius: 12,
-    backgroundColor: "#f2f2f7",
-  },
-
-  emptyText: {
-    textAlign: "center",
-    color: "#777",
-    marginTop: 15,
-    fontSize: 14,
-  },
+  cardTitle: { fontSize: 18, marginTop: 10, fontWeight: "600" },
 });

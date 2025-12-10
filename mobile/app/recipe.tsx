@@ -9,29 +9,82 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from "react-native";
 import GlobalWrapper from "../components/GlobalWrapper";
 import TypingText from "../components/TypingText";
 
-export default function RecipeScreen({ route }) {
-  const recipe = route?.params?.recipe;
+const API_URL = "https://cautiously-mesocratic-albert.ngrok-free.dev";
 
+export default function RecipeScreen({ route }) {
+  const recipeFromResult = route?.params?.recipe;   // From ResultScreen
+  const recipeName = route?.params?.recipeName;     // From HomeScreen
+
+  // ⭐ unify recipe object
+  const [recipe, setRecipe] = useState(
+    recipeFromResult ? normalizeRecipe(recipeFromResult) : null
+  );
+
+  const [loading, setLoading] = useState(!recipeFromResult);
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // ❤️ Check favorite
+  // -------------------------------------------------------------
+  // ⭐ Normalize recipe object
+  // -------------------------------------------------------------
+  function normalizeRecipe(r) {
+    if (!r) return null;
+
+    return {
+      name_jp: r.name_jp || r.title_jp || r.name_en || "料理名不明",
+      name_en: r.name_en || "",
+      image: r.image || null,
+      instructions_jp: r.instructions_jp || r.instructions_en || "作り方の情報がありません。",
+      ingredients_jp: r.ingredients_jp || [],
+      sourceUrl: r.sourceUrl || null,
+    };
+  }
+
+  // -------------------------------------------------------------
+  // ⭐ If coming from Home → Fetch recipe details
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (recipeFromResult) return; // already have full recipe
+
+    const fetchRecipe = async () => {
+      try {
+        const res = await fetch(`${API_URL}/recipe/${recipeName}`);
+        const data = await res.json();
+
+        console.log("📌 Recipe fetched:", data);
+
+        if (data.recipe) {
+          setRecipe(normalizeRecipe(data.recipe));
+        } else {
+          setRecipe(null);
+        }
+      } catch (err) {
+        console.log("ERROR:", err);
+        setRecipe(null);
+      }
+      setLoading(false);
+    };
+
+    if (recipeName) fetchRecipe();
+  }, [recipeName]);
+
+  // -------------------------------------------------------------
+  // ❤️ FAVORITE LOGIC
+  // -------------------------------------------------------------
   useEffect(() => {
     const load = async () => {
       const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
-      const found = stored.some(
-        (item) => item.name_jp === recipe?.name_jp
-      );
+      const found = stored.some((item) => item.name_jp === recipe?.name_jp);
       setIsFavorite(found);
     };
 
     if (recipe) load();
   }, [recipe]);
 
-  // ❤️ Toggle favorite
   const toggleFavorite = async () => {
     const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
     let updated;
@@ -46,30 +99,40 @@ export default function RecipeScreen({ route }) {
     setIsFavorite(!isFavorite);
   };
 
-  // 🧹 CLEAN HTML + MAKE BULLETS
-  const clean = (text: string) => {
+  // -------------------------------------------------------------
+  // 🧹 Clean HTML from instructions
+  // -------------------------------------------------------------
+  const clean = (text) => {
     if (!text) return "";
-
-    let cleaned = text;
-
-    // Convert <li> items to bullet points
-    cleaned = cleaned.replace(/<li>/g, "• ");
-    cleaned = cleaned.replace(/<\/li>/g, "\n");
-
-    // Remove all other HTML tags
-    cleaned = cleaned.replace(/<\/?[^>]+(>|$)/g, "");
-
-    // Remove extra newlines
-    cleaned = cleaned.replace(/\n{2,}/g, "\n");
-
-    return cleaned.trim();
+    return text
+      .replace(/<li>/g, "• ")
+      .replace(/<\/li>/g, "\n")
+      .replace(/<\/?[^>]+>/g, "")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
   };
 
+  // -------------------------------------------------------------
+  // Loading state
+  // -------------------------------------------------------------
+  if (loading) {
+    return (
+      <GlobalWrapper>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <ActivityIndicator size="large" color="#FF6347" />
+        </View>
+      </GlobalWrapper>
+    );
+  }
+
+  // -------------------------------------------------------------
+  // No recipe found
+  // -------------------------------------------------------------
   if (!recipe) {
     return (
       <GlobalWrapper>
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>⚠️ No recipe data found.</Text>
+        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+          <Text style={{ fontSize: 18, color: "red" }}>⚠️ レシピが見つかりません。</Text>
         </View>
       </GlobalWrapper>
     );
@@ -78,13 +141,15 @@ export default function RecipeScreen({ route }) {
   return (
     <GlobalWrapper>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Image + Title */}
         <View style={styles.card}>
-          <Image source={{ uri: recipe.image }} style={styles.image} />
+          <Image
+            source={{ uri: recipe.image || "https://via.placeholder.com/400?text=No+Image" }}
+            style={styles.image}
+          />
 
           <View style={styles.titleRow}>
             <Text style={styles.title}>
-              {recipe.name_jp || recipe.name_en || "料理名不明"}
+              {recipe.name_jp || "料理名不明"}
             </Text>
 
             <TouchableOpacity onPress={toggleFavorite}>
@@ -97,27 +162,18 @@ export default function RecipeScreen({ route }) {
           </View>
         </View>
 
-        {/* Ingredients */}
         <Text style={styles.sectionTitle}>🍴 材料</Text>
-
         <View style={styles.ingredientsBox}>
-          {(recipe.ingredients_jp || []).map(
-            (item: string, index: number) => (
-              <Text key={index} style={styles.ingredientItem}>
-                • {item}
-              </Text>
-            )
-          )}
+          {(recipe.ingredients_jp || []).map((i, idx) => (
+            <Text key={idx} style={styles.ingredientItem}>
+              • {i}
+            </Text>
+          ))}
         </View>
 
-        {/* Instructions */}
         <Text style={styles.sectionTitle}>🧑‍🍳 作り方</Text>
+        <TypingText text={clean(recipe.instructions_jp)} />
 
-        <TypingText
-          text={clean(recipe.instructions_jp || recipe.instructions_en)}
-        />
-
-        {/* Source URL */}
         {!!recipe.sourceUrl && (
           <Text
             style={styles.link}
@@ -131,57 +187,13 @@ export default function RecipeScreen({ route }) {
   );
 }
 
-// Styles
 const styles = StyleSheet.create({
-  card: {
-    backgroundColor: "#FFF",
-    borderRadius: 14,
-    marginBottom: 16,
-    overflow: "hidden",
-  },
-  image: {
-    width: "100%",
-    height: 250,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    flex: 1,
-    color: "#333",
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 20,
-    color: "#FF7043",
-  },
-  ingredientsBox: {
-    backgroundColor: "#FFF",
-    padding: 14,
-    borderRadius: 12,
-    marginBottom: 16,
-  },
-  ingredientItem: {
-    fontSize: 16,
-    marginVertical: 4,
-    lineHeight: 24,
-  },
-  link: {
-    color: "#4285F4",
-    fontSize: 18,
-    marginTop: 20,
-    textDecorationLine: "underline",
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorText: { fontSize: 18, color: "red" },
+  card: { backgroundColor: "#FFF", borderRadius: 14, marginBottom: 16, overflow: "hidden" },
+  image: { width: "100%", height: 250 },
+  titleRow: { flexDirection: "row", justifyContent: "space-between", padding: 12 },
+  title: { fontSize: 22, fontWeight: "bold", flex: 1 },
+  sectionTitle: { fontSize: 20, fontWeight: "bold", marginTop: 20, color: "#FF7043" },
+  ingredientsBox: { backgroundColor: "#FFF", padding: 14, borderRadius: 12, marginBottom: 16 },
+  ingredientItem: { fontSize: 16, marginVertical: 4 },
+  link: { color: "#4285F4", fontSize: 18, marginTop: 20, textDecorationLine: "underline" },
 });
