@@ -1,20 +1,27 @@
-// 🧠 components/TypingText.tsx (ChatGPT-style typing)
+// components/TypingText.tsx
 import React, { useEffect, useState } from "react";
 import { Text } from "react-native";
+import { useTheme } from "../context/ThemeContext";
+import { Colors } from "../constants/colors";
 
 type Props = {
   text: string;
-  charSpeed?: number;     // speed per character (ms)
-  sentencePause?: number; // pause between sentences (ms)
+  charSpeed?: number;
+  sentencePause?: number;
+  textStyle?: any; // allow custom styles
 };
 
 export default function TypingText({
   text,
   charSpeed = 20,
   sentencePause = 500,
+  textStyle,
 }: Props) {
   const [displayed, setDisplayed] = useState("");
   const [isTyping, setIsTyping] = useState(true);
+
+  const { isDark } = useTheme();
+  const theme = isDark ? Colors.dark : Colors.light;
 
   useEffect(() => {
     const sentences = text.split(/(?<=[.!?])\s+/);
@@ -29,10 +36,7 @@ export default function TypingText({
           clearInterval(charInterval);
           sentenceIndex++;
           if (sentenceIndex < sentences.length) {
-            setTimeout(
-              () => typeSentence(sentences[sentenceIndex]),
-              sentencePause
-            );
+            setTimeout(() => typeSentence(sentences[sentenceIndex]), sentencePause);
           } else {
             setIsTyping(false);
           }
@@ -47,9 +51,19 @@ export default function TypingText({
   }, [text]);
 
   return (
-    <Text style={{ fontSize: 16, lineHeight: 22, marginTop: 10, color: "#333" }}>
+    <Text
+      style={[
+        {
+          fontSize: 16,
+          lineHeight: 22,
+          marginTop: 10,
+          color: theme.text,
+        },
+        textStyle,
+      ]}
+    >
       {displayed}
-      {isTyping && <Text style={{ opacity: 0.5 }}>|</Text>}
+      {isTyping && <Text style={{ opacity: 0.4, color: theme.text }}>|</Text>}
     </Text>
   );
 }

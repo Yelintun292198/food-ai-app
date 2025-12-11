@@ -16,9 +16,18 @@ import type { RootStackParamList } from "../App";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+import { useTheme } from "../context/ThemeContext";
+import { Colors } from "../constants/colors";
+import { useTextSize } from "../context/TextSizeContext"; // ← ADD
+
 export default function PreviewScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const { isDark } = useTheme();
+  const theme = isDark ? Colors.dark : Colors.light;
+
+  const { fontSize } = useTextSize(); // ← ADD
 
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -27,7 +36,7 @@ export default function PreviewScreen() {
     (process.env.EXPO_PUBLIC_API_URL ||
       "https://cautiously-mesocratic-albert.ngrok-free.dev").replace(/\/$/, "");
 
-  // 📸 PICK IMAGE
+  // PICK IMAGE
   const pickImage = async () => {
     const permission =
       await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -45,7 +54,7 @@ export default function PreviewScreen() {
     if (!result.canceled) setImageUri(result.assets[0].uri);
   };
 
-  // 📷 TAKE PHOTO
+  // TAKE PHOTO
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
 
@@ -63,7 +72,7 @@ export default function PreviewScreen() {
     if (!result.canceled) setImageUri(result.assets[0].uri);
   };
 
-  // 🔍 ANALYZE IMAGE
+  // ANALYZE IMAGE
   const analyzeImage = async () => {
     if (!imageUri) return;
 
@@ -81,15 +90,12 @@ export default function PreviewScreen() {
         type,
       } as any);
 
-      console.log("📤 Sending to backend:", `${API_URL}/predict`);
-
       const res = await axios.post(`${API_URL}/predict`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         timeout: 60000,
       });
 
       const data = res.data;
-      console.log("📥 Backend returned:", data);
 
       if (!data || data.error) {
         Alert.alert("Error", "AI分析に失敗しました。");
@@ -97,7 +103,6 @@ export default function PreviewScreen() {
         return;
       }
 
-      // Normalize for frontend
       const normalized = {
         predicted_food_jp: data.predicted_food_jp || "不明",
         predicted_food_en: data.predicted_food_en || "",
@@ -106,9 +111,6 @@ export default function PreviewScreen() {
         image: imageUri,
       };
 
-      console.log("📦 Normalized:", normalized);
-
-      // HISTORY SAVE
       const newItem = {
         date: new Date().toISOString().split("T")[0],
         name: normalized.predicted_food_jp,
@@ -124,7 +126,6 @@ export default function PreviewScreen() {
         JSON.stringify([newItem, ...oldHistory])
       );
 
-      // ⭐ FIXED: navigate to correct screen → "Result"
       navigation.navigate("Result", {
         result: normalized,
         fallbackImage: normalized.image,
@@ -142,68 +143,103 @@ export default function PreviewScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>📸 食べ物を分析しよう</Text>
-      <Text style={styles.subText}>AIが料理を認識してレシピを表示します</Text>
+    <View style={[styles.container, { backgroundColor: theme.background }]}>
+      {/* Header */}
+      <Text style={[styles.header, { color: theme.text, fontSize: fontSize + 4 }]}>
+        📸 食べ物を分析しよう
+      </Text>
 
-      <View style={styles.previewBox}>
+      <Text
+        style={[
+          styles.subText,
+          { color: isDark ? "#bbb" : "#666", fontSize },
+        ]}
+      >
+        AIが料理を認識してレシピを表示します
+      </Text>
+
+      {/* Preview Box */}
+      <View
+        style={[
+          styles.previewBox,
+          {
+            backgroundColor: isDark ? "#222" : "#fafafa",
+            borderColor: isDark ? "#444" : "#eee",
+          },
+        ]}
+      >
         {imageUri ? (
           <Image source={{ uri: imageUri }} style={styles.image} />
         ) : (
-          <Ionicons name="image-outline" size={80} color="#ccc" />
+          <Ionicons
+            name="image-outline"
+            size={80}
+            color={isDark ? "#777" : "#ccc"}
+          />
         )}
       </View>
 
+      {/* PICK IMAGE */}
       <TouchableOpacity style={styles.pickBtn} onPress={pickImage}>
         <Ionicons name="images" size={22} color="#fff" />
-        <Text style={styles.btnText}>画像を選択</Text>
+        <Text style={[styles.btnText, { fontSize }]}>画像を選択</Text>
       </TouchableOpacity>
 
+      {/* TAKE PHOTO */}
       <TouchableOpacity style={styles.cameraBtn} onPress={takePhoto}>
         <Ionicons name="camera" size={22} color="#fff" />
-        <Text style={styles.btnText}>カメラで撮影</Text>
+        <Text style={[styles.btnText, { fontSize }]}>カメラで撮影</Text>
       </TouchableOpacity>
 
+      {/* ANALYZE BUTTON */}
       {imageUri && (
         <TouchableOpacity style={styles.analyzeBtn} onPress={analyzeImage}>
           <Ionicons name="search" size={22} color="#fff" />
-          <Text style={styles.btnText}>AIで分析する</Text>
+          <Text style={[styles.btnText, { fontSize }]}>AIで分析する</Text>
         </TouchableOpacity>
       )}
 
+      {/* LOADING */}
       {loading && (
         <View style={styles.loadingBox}>
           <ActivityIndicator size="large" color="#FF6347" />
-          <Text style={styles.loadingText}>分析中...</Text>
+          <Text
+            style={[styles.loadingText, { fontSize, color: "#FF6347" }]}
+          >
+            分析中...
+          </Text>
         </View>
       )}
     </View>
   );
 }
 
-// styles unchanged...
+//
+// Styles
+//
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
     alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 70,
   },
+
   header: { fontSize: 24, fontWeight: "bold", marginBottom: 6 },
-  subText: { fontSize: 14, color: "#666", marginBottom: 20 },
+  subText: { fontSize: 14, marginBottom: 20 },
+
   previewBox: {
     width: 280,
     height: 280,
-    backgroundColor: "#fafafa",
     borderRadius: 20,
     justifyContent: "center",
     alignItems: "center",
     borderWidth: 1,
-    borderColor: "#eee",
     marginBottom: 25,
   },
+
   image: { width: "100%", height: "100%", borderRadius: 20 },
+
   pickBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -213,6 +249,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     marginBottom: 10,
   },
+
   cameraBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -222,6 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     marginBottom: 10,
   },
+
   analyzeBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -230,12 +268,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     borderRadius: 30,
   },
+
   btnText: {
     color: "#fff",
-    fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
   },
+
   loadingBox: { flexDirection: "row", alignItems: "center", marginTop: 20 },
-  loadingText: { fontSize: 16, marginLeft: 10, color: "#FF6347" },
+  loadingText: { marginLeft: 10 },
 });

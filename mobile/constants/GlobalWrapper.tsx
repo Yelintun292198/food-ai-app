@@ -1,17 +1,29 @@
+// components/GlobalWrapper.tsx
 import React from "react";
-import { SafeAreaView, StyleSheet } from "react-native";
-import { theme } from "../constants/theme";
+import { StyleSheet, View } from "react-native";
+import { useTheme } from "../context/ThemeContext";
+import { Colors } from "../constants/colors";
 
-// 🧱 Global beige background wrapper for all screens
 export default function GlobalWrapper({ children }) {
-  return <SafeAreaView style={styles.container}>{children}</SafeAreaView>;
+  const { isDark } = useTheme();
+  const theme = isDark ? Colors.dark : Colors.light;
+
+  return (
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: theme.background },
+      ]}
+    >
+      {children}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingHorizontal: theme.spacing.md,
-    paddingTop: theme.spacing.md,
+    paddingHorizontal: 16,
+    paddingTop: 16,
   },
 });
