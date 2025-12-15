@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 
 import HomeScreen from "../app/home";
 import PreviewScreen from "../app/preview";
+import ResultScreen from "../app/result";
+import RecipeScreen from "../app/recipe";
 import SettingsScreen from "../app/settings";
 
 import { useTheme } from "../context/ThemeContext";
@@ -34,13 +36,15 @@ export default function TabsNavigator() {
 
         // Icons
         tabBarIcon: ({ color, size }) => {
-          let iconName;
+          let iconName: any;
 
           if (route.name === "Home") iconName = "home";
           else if (route.name === "Scan") iconName = "camera";
+          else if (route.name === "Result") iconName = "analytics";
+          else if (route.name === "Recipe") iconName = "restaurant";
           else if (route.name === "Settings") iconName = "settings";
 
-          return <Ionicons name={iconName as any} size={size} color={color} />;
+          return <Ionicons name={iconName} size={size} color={color} />;
         },
       })}
     >
@@ -54,6 +58,18 @@ export default function TabsNavigator() {
         name="Scan"
         component={PreviewScreen}
         options={{ tabBarLabel: "スキャン" }}
+      />
+
+      <Tab.Screen
+        name="Result"
+        component={ResultScreen}
+        options={{ tabBarLabel: "結果" }}
+      />
+
+      <Tab.Screen
+        name="Recipe"
+        component={RecipeScreen}
+        options={{ tabBarLabel: "レシピ" }}
       />
 
       <Tab.Screen

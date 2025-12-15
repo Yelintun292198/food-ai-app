@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+
 import models, database
 from auth_utils import hash_password, verify_password
 from auth_jwt import create_access_token
@@ -8,9 +9,11 @@ from auth_jwt import create_access_token
 router = APIRouter(prefix="/api", tags=["Auth"])
 
 
-# 🧩 Request Schemas
+# =========================
+# Request Schemas
+# =========================
 class RegisterRequest(BaseModel):
-    name: str    # use "name" instead of "username"
+    name: str
     email: str
     password: str
 
@@ -20,15 +23,26 @@ class LoginRequest(BaseModel):
     password: str
 
 
-# 🧠 Register API
+# =========================
+# Register API
+# =========================
 @router.post("/register")
-def register_user(request: RegisterRequest, db: Session = Depends(database.get_db)):
-    user = db.query(models.Users).filter(models.Users.email == request.email).first()
+def register_user(
+    request: RegisterRequest,
+    db: Session = Depends(database.get_db)
+):
+    # Check duplicate email
+    user = db.query(models.Users).filter(
+        models.Users.email == request.email
+    ).first()
+
     if user:
         raise HTTPException(status_code=400, detail="Email already registered")
 
+    # Hash password
     hashed_pw = hash_password(request.password)
 
+    # Create user
     new_user = models.Users(
         name=request.name,
         email=request.email,
@@ -40,24 +54,32 @@ def register_user(request: RegisterRequest, db: Session = Depends(database.get_d
     db.commit()
     db.refresh(new_user)
 
+    # DEBUG LOG (you can remove later)
+    print("🔥 REGISTER DEBUG USER_ID =", new_user.id)
+
     return {
-    "message": "User registered successfully",
-    "user_id": new_user.id,
-    "name": new_user.name,
-    "email": new_user.email
+        "message": "User registered successfully",
+        "user_id": new_user.id,
+        "name": new_user.name,
+        "email": new_user.email,
     }
 
 
-
-# 🔐 Login API
+# =========================
+# Login API
+# =========================
 @router.post("/login")
-def login_user(request: LoginRequest, db: Session = Depends(database.get_db)):
-    user = db.query(models.Users).filter(models.Users.email == request.email).first()
+def login_user(
+    request: LoginRequest,
+    db: Session = Depends(database.get_db)
+):
+    user = db.query(models.Users).filter(
+        models.Users.email == request.email
+    ).first()
 
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # Prevent login for Google-only accounts
     if user.password_hash is None:
         raise HTTPException(status_code=400, detail="Please login with Google")
 
@@ -66,4 +88,8 @@ def login_user(request: LoginRequest, db: Session = Depends(database.get_db)):
 
     token = create_access_token({"sub": user.email})
 
-    return {"access_token": token, "name": user.name}
+    return {
+        "access_token": token,
+        "name": user.name,
+        "user_id": user.id
+    }

@@ -11,118 +11,162 @@ import {
   View,
   ActivityIndicator,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
 import GlobalWrapper from "../components/GlobalWrapper";
 import TypingText from "../components/TypingText";
 
 import { useTheme } from "../context/ThemeContext";
 import { Colors } from "../constants/colors";
-import { useTextSize } from "../context/TextSizeContext";  // ← ADD
+import { useTextSize } from "../context/TextSizeContext";
 
 const API_URL = "https://cautiously-mesocratic-albert.ngrok-free.dev";
 
 export default function RecipeScreen({ route }) {
+  const navigation = useNavigation<any>();
+
   const { isDark } = useTheme();
   const theme = isDark ? Colors.dark : Colors.light;
-
-  const { fontSize } = useTextSize();  // ← ADD
+  const { fontSize } = useTextSize();
 
   const recipeFromResult = route?.params?.recipe;
   const recipeName = route?.params?.recipeName;
 
-  const [recipe, setRecipe] = useState(
-    recipeFromResult ? normalizeRecipe(recipeFromResult) : null
-  );
-
-  const [loading, setLoading] = useState(!recipeFromResult);
-  const [isFavorite, setIsFavorite] = useState(false);
-
-  // Normalize recipe object
-  function normalizeRecipe(r) {
+  // ----------------------------------
+  // Normalize recipe
+  // ----------------------------------
+  const normalizeRecipe = (r: any) => {
     if (!r) return null;
-
     return {
       name_jp: r.name_jp || r.title_jp || r.name_en || "料理名不明",
       name_en: r.name_en || "",
       image: r.image || null,
       instructions_jp:
-        r.instructions_jp || r.instructions_en || "作り方の情報がありません。",
+        r.instructions_jp ||
+        r.instructions_en ||
+        "作り方の情報がありません。",
       ingredients_jp: r.ingredients_jp || [],
       sourceUrl: r.sourceUrl || null,
     };
-  }
+  };
 
-  // Fetch recipe when coming from Home
+  // ----------------------------------
+  // State
+  // ----------------------------------
+  const [recipe, setRecipe] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+
+  // ==================================================
+  // 🔥 CRITICAL FIX #1
+  // Reset state when navigation params change
+  // ==================================================
   useEffect(() => {
-    if (recipeFromResult) return;
+    // Case: Scan → Result → Recipe
+    if (recipeFromResult) {
+      setRecipe(normalizeRecipe(recipeFromResult));
+      setLoading(false);
+      return;
+    }
+
+    // Case: Home → Recipe (API fetch needed)
+    if (recipeName) {
+      setRecipe(null);     // ❌ clear old recipe immediately
+      setLoading(true);    // ⏳ show loader only
+    }
+  }, [recipeFromResult, recipeName]);
+
+  // ==================================================
+  // 🔥 CRITICAL FIX #2
+  // Fetch recipe by name (Home → Recipe)
+  // ==================================================
+  useEffect(() => {
+    if (!recipeName || recipeFromResult) return;
 
     const fetchRecipe = async () => {
       try {
         const res = await fetch(`${API_URL}/recipe/${recipeName}`);
         const data = await res.json();
-
-        if (data.recipe) {
-          setRecipe(normalizeRecipe(data.recipe));
-        } else {
-          setRecipe(null);
-        }
-      } catch (err) {
+        setRecipe(data.recipe ? normalizeRecipe(data.recipe) : null);
+      } catch {
         setRecipe(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    if (recipeName) fetchRecipe();
+    fetchRecipe();
   }, [recipeName]);
 
+  // ----------------------------------
   // Favorite logic
+  // ----------------------------------
   useEffect(() => {
+    if (!recipe) return;
+
     const load = async () => {
       const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
-      const found = stored.some((item) => item.name_jp === recipe?.name_jp);
-      setIsFavorite(found);
+      setIsFavorite(stored.some((r) => r.name_jp === recipe.name_jp));
     };
-    if (recipe) load();
+
+    load();
   }, [recipe]);
 
   const toggleFavorite = async () => {
     const stored = JSON.parse(await AsyncStorage.getItem("favorites")) || [];
-    let updated;
-
-    if (isFavorite) {
-      updated = stored.filter((r) => r.name_jp !== recipe.name_jp);
-    } else {
-      updated = [...stored, recipe];
-    }
+    const updated = isFavorite
+      ? stored.filter((r) => r.name_jp !== recipe.name_jp)
+      : [...stored, recipe];
 
     await AsyncStorage.setItem("favorites", JSON.stringify(updated));
     setIsFavorite(!isFavorite);
   };
 
-  // Clean HTML text
-  const clean = (text) => {
-    if (!text) return "";
-    return text
-      .replace(/<li>/g, "• ")
+  // ----------------------------------
+  // Clean HTML
+  // ----------------------------------
+  const clean = (text: string) =>
+    text
+      ?.replace(/<li>/g, "• ")
       .replace(/<\/li>/g, "\n")
       .replace(/<\/?[^>]+>/g, "")
       .replace(/\n{2,}/g, "\n")
-      .trim();
-  };
+      .trim() || "";
 
-  // Loading
+  // ==================================================
+  // UI STATES
+  // ==================================================
+
+  // Case: opened tab directly
+  if (!loading && !recipe && !recipeName) {
+    return (
+      <GlobalWrapper>
+        <View style={[styles.center, { backgroundColor: theme.background }]}>
+          <Text style={{ fontSize: fontSize + 2, color: theme.text }}>
+            まだレシピがありません
+          </Text>
+
+          <Text style={{ fontSize, opacity: 0.7, marginVertical: 12 }}>
+            まず料理をスキャンしてください 🍽️
+          </Text>
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={() => navigation.navigate("Scan")}
+          >
+            <Text style={styles.buttonText}>スキャンする</Text>
+          </TouchableOpacity>
+        </View>
+      </GlobalWrapper>
+    );
+  }
+
+  // Loading (NO OLD RECIPE SHOWN)
   if (loading) {
     return (
       <GlobalWrapper>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: theme.background,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <ActivityIndicator size="large" color="#FF6347" />
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#FF7043" />
         </View>
       </GlobalWrapper>
     );
@@ -132,34 +176,26 @@ export default function RecipeScreen({ route }) {
   if (!recipe) {
     return (
       <GlobalWrapper>
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: theme.background,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
+        <View style={styles.center}>
           <Text
             style={{
               fontSize: fontSize + 2,
               color: isDark ? "#ff6666" : "red",
             }}
           >
-            ⚠️ レシピが見つかりません。
+            ⚠️ レシピが見つかりません
           </Text>
         </View>
       </GlobalWrapper>
     );
   }
 
+  // ==================================================
+  // MAIN UI
+  // ==================================================
   return (
     <GlobalWrapper>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={{ backgroundColor: theme.background }}
-      >
-        {/* IMAGE + TITLE */}
+      <ScrollView style={{ backgroundColor: theme.background }}>
         <View
           style={[
             styles.card,
@@ -167,11 +203,7 @@ export default function RecipeScreen({ route }) {
           ]}
         >
           <Image
-            source={{
-              uri:
-                recipe.image ||
-                "https://via.placeholder.com/400?text=No+Image",
-            }}
+            source={{ uri: recipe.image || "https://via.placeholder.com/400" }}
             style={styles.image}
           />
 
@@ -195,13 +227,7 @@ export default function RecipeScreen({ route }) {
           </View>
         </View>
 
-        {/* INGREDIENTS */}
-        <Text
-          style={[
-            styles.sectionTitle,
-            { color: "#FF7043", fontSize: fontSize + 3 },
-          ]}
-        >
+        <Text style={[styles.sectionTitle, { fontSize: fontSize + 3 }]}>
           🍴 材料
         </Text>
 
@@ -211,44 +237,25 @@ export default function RecipeScreen({ route }) {
             { backgroundColor: theme.card, borderColor: theme.border },
           ]}
         >
-          {recipe.ingredients_jp.map((i, idx) => (
-            <Text
-              key={idx}
-              style={[
-                styles.ingredientItem,
-                { color: theme.text, fontSize: fontSize },
-              ]}
-            >
+          {recipe.ingredients_jp.map((i: string, idx: number) => (
+            <Text key={idx} style={{ fontSize, color: theme.text }}>
               • {i}
             </Text>
           ))}
         </View>
 
-        {/* INSTRUCTIONS */}
-        <Text
-          style={[
-            styles.sectionTitle,
-            { color: "#FF7043", fontSize: fontSize + 3 },
-          ]}
-        >
+        <Text style={[styles.sectionTitle, { fontSize: fontSize + 3 }]}>
           🧑‍🍳 作り方
         </Text>
 
         <TypingText
           text={clean(recipe.instructions_jp)}
-          textStyle={{ color: theme.text, fontSize: fontSize }}
+          textStyle={{ color: theme.text, fontSize }}
         />
 
-        {/* LINK */}
         {!!recipe.sourceUrl && (
           <Text
-            style={[
-              styles.link,
-              {
-                color: isDark ? "#4da3ff" : "#4285F4",
-                fontSize: fontSize + 1,
-              },
-            ]}
+            style={[styles.link, { fontSize: fontSize + 1 }]}
             onPress={() => Linking.openURL(recipe.sourceUrl)}
           >
             🔗 View Full Recipe
@@ -259,45 +266,54 @@ export default function RecipeScreen({ route }) {
   );
 }
 
-//
+// ----------------------------------
 // Styles
-//
+// ----------------------------------
 const styles = StyleSheet.create({
+  center: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   card: {
     borderRadius: 14,
     marginBottom: 16,
     overflow: "hidden",
     borderWidth: 1,
   },
-
   image: { width: "100%", height: 250 },
-
   titleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     padding: 12,
   },
-
   title: { fontWeight: "bold", flex: 1 },
-
   sectionTitle: {
     fontWeight: "bold",
     marginTop: 20,
     marginBottom: 8,
+    color: "#FF7043",
   },
-
   ingredientsBox: {
     padding: 14,
     borderRadius: 12,
     marginBottom: 16,
     borderWidth: 1,
   },
-
-  ingredientItem: { marginVertical: 4 },
-
   link: {
     marginTop: 20,
     textDecorationLine: "underline",
     marginBottom: 30,
+    color: "#4285F4",
+  },
+  button: {
+    backgroundColor: "#FF7043",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
   },
 });

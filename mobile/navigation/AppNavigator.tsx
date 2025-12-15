@@ -1,4 +1,3 @@
-// AppNavigator.tsx
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
@@ -6,10 +5,7 @@ import LoginScreen from "../app/login";
 import SignupScreen from "../app/signup";
 import TabsNavigator from "./TabsNavigator";
 
-import ResultScreen from "../app/result";
-import RecipeScreen from "../app/recipe";
-
-// ⭐ Add your onboarding screens
+// ⭐ Signup onboarding screens
 import SignupCategoryScreen from "../app/auth/SignupCategoryScreen";
 import SignupFoodScreen from "../app/auth/SignupFoodScreen";
 
@@ -19,8 +15,6 @@ export type RootStackParamList = {
   SignupCategoryScreen: { userId: number };
   SignupFoodScreen: { userId: number; category: string };
   Tabs: undefined;
-  Result: { result: any; fallbackImage?: string };
-  Recipe: { recipe?: any; recipeName?: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -40,14 +34,13 @@ export default function AppNavigator() {
         name="SignupCategoryScreen"
         component={SignupCategoryScreen}
       />
-      <Stack.Screen name="SignupFoodScreen" component={SignupFoodScreen} />
+      <Stack.Screen
+        name="SignupFoodScreen"
+        component={SignupFoodScreen}
+      />
 
-      {/* MAIN APP */}
+      {/* MAIN APP (BOTTOM TABS) */}
       <Stack.Screen name="Tabs" component={TabsNavigator} />
-
-      {/* EXTRA SCREENS */}
-      <Stack.Screen name="Result" component={ResultScreen} />
-      <Stack.Screen name="Recipe" component={RecipeScreen} />
     </Stack.Navigator>
   );
 }

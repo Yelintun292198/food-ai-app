@@ -6,18 +6,19 @@ import {
   TouchableOpacity,
   ScrollView,
   Switch,
+  Alert,
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useNavigation } from "@react-navigation/native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Slider from "@react-native-community/slider";
 import { useTextSize } from "../context/TextSizeContext";
-
 import { useTheme } from "../context/ThemeContext";
 import { Colors } from "../constants/colors";
 
 export default function SettingsScreen() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
 
   // Theme (Dark / Light)
   const { isDark, toggleTheme } = useTheme();
@@ -26,10 +27,36 @@ export default function SettingsScreen() {
   // Text Size (Dynamic scaling)
   const { fontSize, setFontSize } = useTextSize();
 
+  // =========================
+  // 🔐 LOGOUT FUNCTION
+  // =========================
+  const handleLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove([
+        "access_token",
+        "user",
+      ]);
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      });
+    } catch (error) {
+      Alert.alert("エラー", "ログアウトに失敗しました");
+    }
+  };
+
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.background }]}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.background }]}
+    >
       {/* Header */}
-      <Text style={[styles.header, { color: theme.text, fontSize: fontSize + 4 }]}>
+      <Text
+        style={[
+          styles.header,
+          { color: theme.text, fontSize: fontSize + 4 },
+        ]}
+      >
         アカウント設定
       </Text>
 
@@ -40,7 +67,12 @@ export default function SettingsScreen() {
           { backgroundColor: theme.card, borderColor: theme.border },
         ]}
       >
-        <Text style={[styles.cardTitle, { color: theme.text, fontSize: fontSize + 2 }]}>
+        <Text
+          style={[
+            styles.cardTitle,
+            { color: theme.text, fontSize: fontSize + 2 },
+          ]}
+        >
           プロフィール
         </Text>
 
@@ -62,7 +94,12 @@ export default function SettingsScreen() {
           { backgroundColor: theme.card, borderColor: theme.border },
         ]}
       >
-        <Text style={[styles.cardTitle, { color: theme.text, fontSize: fontSize + 2 }]}>
+        <Text
+          style={[
+            styles.cardTitle,
+            { color: theme.text, fontSize: fontSize + 2 },
+          ]}
+        >
           アプリ設定
         </Text>
 
@@ -77,12 +114,9 @@ export default function SettingsScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* =============================== */}
-        {/*        TEXT SIZE SLIDER         */}
-        {/* =============================== */}
+        {/* TEXT SIZE */}
         <View style={styles.row}>
           <Ionicons name="text-outline" size={26} color="#007AFF" />
-
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={[styles.rowText, { color: theme.text, fontSize }]}>
               文字サイズ調整
@@ -105,7 +139,7 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* DARK MODE SWITCH */}
+        {/* DARK MODE */}
         <View style={styles.row}>
           <Ionicons
             name={isDark ? "moon" : "sunny"}
@@ -127,14 +161,19 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* DATA MANAGEMENT */}
+      {/* DATA */}
       <View
         style={[
           styles.card,
           { backgroundColor: theme.card, borderColor: theme.border },
         ]}
       >
-        <Text style={[styles.cardTitle, { color: theme.text, fontSize: fontSize + 2 }]}>
+        <Text
+          style={[
+            styles.cardTitle,
+            { color: theme.text, fontSize: fontSize + 2 },
+          ]}
+        >
           データ管理
         </Text>
 
@@ -159,8 +198,8 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Logout */}
-      <TouchableOpacity style={styles.logoutBtn}>
+      {/* LOGOUT */}
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>ログアウト</Text>
       </TouchableOpacity>
 

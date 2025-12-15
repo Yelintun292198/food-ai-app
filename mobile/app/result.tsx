@@ -11,11 +11,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute } from "@react-navigation/native";
 import type { RouteProp } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import type { RootStackParamList } from "../App";
 
 import { useTheme } from "../context/ThemeContext";
 import { Colors } from "../constants/colors";
-import { useTextSize } from "../context/TextSizeContext"; // ← ADD
+import { useTextSize } from "../context/TextSizeContext";
+
+import type { RootStackParamList } from "../App";
 
 type ResultScreenRouteProp = RouteProp<RootStackParamList, "Result">;
 
@@ -28,11 +29,13 @@ export default function ResultScreen() {
 
   const { isDark } = useTheme();
   const theme = isDark ? Colors.dark : Colors.light;
-
-  const { fontSize } = useTextSize(); // ← ADD
+  const { fontSize } = useTextSize();
 
   console.log("📌 RESULT =", result);
 
+  // -------------------------------------------
+  // ❌ No data
+  // -------------------------------------------
   if (!result) {
     return (
       <View
@@ -41,22 +44,28 @@ export default function ResultScreen() {
           { backgroundColor: theme.background },
         ]}
       >
-        <Text style={[styles.error, { color: theme.text, fontSize: fontSize }]}>
+        <Text style={[styles.error, { color: theme.text, fontSize }]}>
           データがありません
         </Text>
       </View>
     );
   }
 
+  // -------------------------------------------
+  // ✅ FIXED NAVIGATION
+  // -------------------------------------------
   const openRecipe = () => {
     if (!result.recipe) {
       Alert.alert("エラー", "レシピが見つかりませんでした。");
       return;
     }
 
+    console.log("➡️ Open Recipe:", result.recipe?.name_jp);
+
     navigation.navigate("Recipe", {
-      recipe: result.recipe,
-      fallbackImage: result.image,
+      recipe: result.recipe,       // ✅ always pass scanned recipe
+      recipeName: undefined,        // 🔥 clear Home-based recipe
+      _ts: Date.now(),              // 🔥 force screen refresh
     });
   };
 
@@ -67,7 +76,7 @@ export default function ResultScreen() {
         { backgroundColor: theme.background },
       ]}
     >
-      {/* MAIN HEADER */}
+      {/* HEADER */}
       <Text
         style={[
           styles.header,
@@ -86,7 +95,7 @@ export default function ResultScreen() {
         AIが検出した料理の情報です
       </Text>
 
-      {/* FOOD NAME CARD */}
+      {/* FOOD CARD */}
       <View
         style={[
           styles.card,
@@ -104,7 +113,7 @@ export default function ResultScreen() {
         </Text>
       </View>
 
-      {/* CONFIDENCE BOX */}
+      {/* CONFIDENCE */}
       <View
         style={[
           styles.confidenceBox,
@@ -131,9 +140,7 @@ export default function ResultScreen() {
         onPress={openRecipe}
       >
         <Ionicons name="book" size={20} color="#fff" />
-        <Text
-          style={[styles.btnText, { fontSize: fontSize + 1 }]}
-        >
+        <Text style={[styles.btnText, { fontSize: fontSize + 1 }]}>
           レシピを見る
         </Text>
       </TouchableOpacity>
@@ -144,9 +151,7 @@ export default function ResultScreen() {
         onPress={() => navigation.navigate("Home")}
       >
         <Ionicons name="home" size={20} color="#fff" />
-        <Text
-          style={[styles.btnText, { fontSize: fontSize + 1 }]}
-        >
+        <Text style={[styles.btnText, { fontSize: fontSize + 1 }]}>
           ホームに戻る
         </Text>
       </TouchableOpacity>
@@ -164,9 +169,9 @@ export default function ResultScreen() {
   );
 }
 
-//
+// -------------------------------------------
 // Styles
-//
+// -------------------------------------------
 const styles = StyleSheet.create({
   container: {
     flexGrow: 1,
@@ -228,5 +233,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   error: { fontWeight: "bold" },
 });

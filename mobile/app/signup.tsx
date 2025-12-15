@@ -13,9 +13,13 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
-const API_URL =
-  (process.env.EXPO_PUBLIC_API_URL ||
-    "https://cautiously-mesocratic-albert.ngrok-free.dev").replace(/\/$/, "");
+const API_URL = "https://cautiously-mesocratic-albert.ngrok-free.dev";
+
+    console.log("API_URL =", process.env.EXPO_PUBLIC_API_URL);
+
+
+
+
 
 export default function SignUpScreen() {
   const navigation = useNavigation<any>();
@@ -47,6 +51,8 @@ export default function SignUpScreen() {
       });
 
       const data = await res.json();
+      console.log("REGISTER RESPONSE:", data);
+
 
       if (res.ok) {
         // MUST return user_id from backend
