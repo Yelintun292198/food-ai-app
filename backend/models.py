@@ -1,6 +1,11 @@
-from sqlalchemy import Column, Integer, String, DateTime, func
+from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy.sql import func
 from database import Base
 
+
+# =========================
+# Users
+# =========================
 
 class Users(Base):
     __tablename__ = "users"
@@ -11,62 +16,69 @@ class Users(Base):
     google_id = Column(String(255), nullable=True)
     name = Column(String(255), nullable=True)
 
-    # Email is used for login + google
+    # Email login
     email = Column(String(255), unique=True, nullable=False)
-
-    # Password only for normal users (Google login users = null)
     password_hash = Column(String(255), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-# -----------------------------
-# ⭐ NEW TABLE: Recommendations
-# -----------------------------
+
+# =========================
+# Recommendations
+# =========================
+
 class Recommendations(Base):
     __tablename__ = "recommendations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer)  # simple FK; handled in router
-    recipe_name = Column(String(255))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    recipe_name = Column(String(255), nullable=False)
     image_url = Column(String(500))
     reason = Column(String(500))
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-# -----------------------------
-# ⭐ NEW TABLE: Community Posts
-# -----------------------------
-class Posts(Base):
-    __tablename__ = "posts"
+# =========================
+# Community Posts
+# =========================
+
+class CommunityPost(Base):
+    __tablename__ = "community_posts"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer)   # FK to users.id
-    image_url = Column(String(500), nullable=False)
-    caption = Column(String(500))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    dish_name = Column(String(255), nullable=False)
+    dish_image = Column(Text, nullable=False)
+    opinion = Column(Text)
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
-# -----------------------------
-# ⭐ NEW TABLE: Post Likes
-# -----------------------------
-class PostLikes(Base):
+# =========================
+# Post Likes
+# =========================
+
+class PostLike(Base):
     __tablename__ = "post_likes"
 
     id = Column(Integer, primary_key=True, index=True)
-    post_id = Column(Integer)   # FK to posts.id
-    user_id = Column(Integer)   # FK to users.id
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    post_id = Column(Integer, ForeignKey("community_posts.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
 
-# -----------------------------
-# ⭐ NEW TABLE: Post Comments
-# -----------------------------
-class PostComments(Base):
+# =========================
+# Post Comments
+# =========================
+
+class PostComment(Base):
     __tablename__ = "post_comments"
 
     id = Column(Integer, primary_key=True, index=True)
-    post_id = Column(Integer)   # FK to posts.id
-    user_id = Column(Integer)   # FK to users.id
-    comment = Column(String(500))
+    post_id = Column(Integer, ForeignKey("community_posts.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    comment = Column(Text, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

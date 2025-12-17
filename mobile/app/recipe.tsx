@@ -10,6 +10,9 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 
@@ -39,7 +42,7 @@ export default function RecipeScreen({ route }) {
     if (!r) return null;
     return {
       name_jp: r.name_jp || r.title_jp || r.name_en || "料理名不明",
-      name_en: r.name_en || "",
+      name_en: r.name_en || r.name_jp || "",
       image: r.image || null,
       instructions_jp:
         r.instructions_jp ||
@@ -57,29 +60,30 @@ export default function RecipeScreen({ route }) {
   const [loading, setLoading] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
 
-  // ==================================================
-  // 🔥 CRITICAL FIX #1
-  // Reset state when navigation params change
-  // ==================================================
+  // Share modal
+  const [shareVisible, setShareVisible] = useState(false);
+  const [opinion, setOpinion] = useState("");
+  const [sharing, setSharing] = useState(false);
+
+  // ----------------------------------
+  // Reset when params change
+  // ----------------------------------
   useEffect(() => {
-    // Case: Scan → Result → Recipe
     if (recipeFromResult) {
       setRecipe(normalizeRecipe(recipeFromResult));
       setLoading(false);
       return;
     }
 
-    // Case: Home → Recipe (API fetch needed)
     if (recipeName) {
-      setRecipe(null);     // ❌ clear old recipe immediately
-      setLoading(true);    // ⏳ show loader only
+      setRecipe(null);
+      setLoading(true);
     }
   }, [recipeFromResult, recipeName]);
 
-  // ==================================================
-  // 🔥 CRITICAL FIX #2
-  // Fetch recipe by name (Home → Recipe)
-  // ==================================================
+  // ----------------------------------
+  // Fetch recipe by name
+  // ----------------------------------
   useEffect(() => {
     if (!recipeName || recipeFromResult) return;
 
@@ -123,6 +127,47 @@ export default function RecipeScreen({ route }) {
   };
 
   // ----------------------------------
+  // Share to Community
+  // ----------------------------------
+  const submitShare = async () => {
+  try {
+    setSharing(true);
+
+    const storedUser = await AsyncStorage.getItem("user");
+    if (!storedUser) {
+      Alert.alert("エラー", "ログインが必要です");
+      return;
+    }
+
+    const user = JSON.parse(storedUser);
+
+    const res = await fetch(`${API_URL}/api/community/post`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: user.id,
+        dish_name: recipe.name_jp,
+        dish_image: recipe.image || "https://via.placeholder.com/300",
+        opinion,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Post failed");
+    }
+
+    Alert.alert("成功", "コミュニティに投稿しました！");
+    setOpinion("");
+    setShareVisible(false);
+  } catch (e) {
+    Alert.alert("エラー", "投稿に失敗しました");
+  } finally {
+    setSharing(false);
+  }
+};
+
+
+  // ----------------------------------
   // Clean HTML
   // ----------------------------------
   const clean = (text: string) =>
@@ -133,35 +178,9 @@ export default function RecipeScreen({ route }) {
       .replace(/\n{2,}/g, "\n")
       .trim() || "";
 
-  // ==================================================
+  // ----------------------------------
   // UI STATES
-  // ==================================================
-
-  // Case: opened tab directly
-  if (!loading && !recipe && !recipeName) {
-    return (
-      <GlobalWrapper>
-        <View style={[styles.center, { backgroundColor: theme.background }]}>
-          <Text style={{ fontSize: fontSize + 2, color: theme.text }}>
-            まだレシピがありません
-          </Text>
-
-          <Text style={{ fontSize, opacity: 0.7, marginVertical: 12 }}>
-            まず料理をスキャンしてください 🍽️
-          </Text>
-
-          <TouchableOpacity
-            style={styles.button}
-            onPress={() => navigation.navigate("Scan")}
-          >
-            <Text style={styles.buttonText}>スキャンする</Text>
-          </TouchableOpacity>
-        </View>
-      </GlobalWrapper>
-    );
-  }
-
-  // Loading (NO OLD RECIPE SHOWN)
+  // ----------------------------------
   if (loading) {
     return (
       <GlobalWrapper>
@@ -172,27 +191,21 @@ export default function RecipeScreen({ route }) {
     );
   }
 
-  // Not found
   if (!recipe) {
     return (
       <GlobalWrapper>
         <View style={styles.center}>
-          <Text
-            style={{
-              fontSize: fontSize + 2,
-              color: isDark ? "#ff6666" : "red",
-            }}
-          >
-            ⚠️ レシピが見つかりません
+          <Text style={{ fontSize: fontSize + 2, color: theme.text }}>
+            レシピが見つかりません
           </Text>
         </View>
       </GlobalWrapper>
     );
   }
 
-  // ==================================================
+  // ----------------------------------
   // MAIN UI
-  // ==================================================
+  // ----------------------------------
   return (
     <GlobalWrapper>
       <ScrollView style={{ backgroundColor: theme.background }}>
@@ -217,13 +230,26 @@ export default function RecipeScreen({ route }) {
               {recipe.name_jp}
             </Text>
 
-            <TouchableOpacity onPress={toggleFavorite}>
-              <Ionicons
-                name={isFavorite ? "heart" : "heart-outline"}
-                size={28}
-                color={isFavorite ? "red" : isDark ? "#bbb" : "gray"}
-              />
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row" }}>
+              <TouchableOpacity
+                style={{ marginRight: 12 }}
+                onPress={() => setShareVisible(true)}
+              >
+                <Ionicons
+                  name="share-social-outline"
+                  size={26}
+                  color={theme.text}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={toggleFavorite}>
+                <Ionicons
+                  name={isFavorite ? "heart" : "heart-outline"}
+                  size={26}
+                  color={isFavorite ? "red" : theme.text}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -262,6 +288,48 @@ export default function RecipeScreen({ route }) {
           </Text>
         )}
       </ScrollView>
+
+      {/* ======================
+          Share Modal
+      ====================== */}
+      <Modal visible={shareVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.modalContent,
+              { backgroundColor: theme.card },
+            ]}
+          >
+            <Text style={{ fontSize: fontSize + 2, marginBottom: 12 }}>
+              コミュニティに投稿
+            </Text>
+
+            <TextInput
+              placeholder="感想を書いてください（任意）"
+              placeholderTextColor="#999"
+              value={opinion}
+              onChangeText={setOpinion}
+              style={[
+                styles.input,
+                { color: theme.text, borderColor: theme.border },
+              ]}
+              multiline
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity onPress={() => setShareVisible(false)}>
+                <Text style={{ color: "gray" }}>キャンセル</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={submitShare} disabled={sharing}>
+                <Text style={{ color: "#FF7043", fontWeight: "bold" }}>
+                  {sharing ? "投稿中..." : "投稿"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </GlobalWrapper>
   );
 }
@@ -270,11 +338,7 @@ export default function RecipeScreen({ route }) {
 // Styles
 // ----------------------------------
 const styles = StyleSheet.create({
-  center: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
   card: {
     borderRadius: 14,
     marginBottom: 16,
@@ -306,14 +370,25 @@ const styles = StyleSheet.create({
     marginBottom: 30,
     color: "#4285F4",
   },
-  button: {
-    backgroundColor: "#FF7043",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    padding: 20,
   },
-  buttonText: {
-    color: "white",
-    fontWeight: "bold",
+  modalContent: {
+    borderRadius: 12,
+    padding: 16,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    minHeight: 80,
+    marginBottom: 16,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
 });

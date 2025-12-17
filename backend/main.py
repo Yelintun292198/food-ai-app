@@ -23,7 +23,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import models
 import database
-from routers import auth, auth_google, posts
+from routers import auth, auth_google, posts, community
 
 import requests
 from PIL import Image
@@ -78,6 +78,7 @@ models.Base.metadata.create_all(bind=database.engine)
 app.include_router(posts.router)
 app.include_router(auth.router)
 app.include_router(auth_google.router)
+app.include_router(community.router)
 
 
 # ==============================================
