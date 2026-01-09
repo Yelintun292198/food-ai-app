@@ -1,5 +1,6 @@
 // App.tsx
 import React from "react";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import {
   NavigationContainer,
   DefaultTheme,
@@ -9,13 +10,14 @@ import {
 import AppNavigator from "./navigation/AppNavigator";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { TextSizeProvider } from "./context/TextSizeContext";
+import { LanguageProvider } from "./context/LanguageContext";
 import { Colors } from "./constants/colors";
 
-// Sync navigation theme with custom theme
+// ==============================
+// Sync navigation theme with app theme
+// ==============================
 function ThemedNavigation() {
   const { isDark } = useTheme();
-
-  // Keep internal fonts (regular, medium, bold)
   const baseTheme = isDark ? DarkTheme : DefaultTheme;
 
   return (
@@ -39,12 +41,19 @@ function ThemedNavigation() {
   );
 }
 
+// ==============================
+// App Root
+// ==============================
 export default function App() {
   return (
-    <ThemeProvider>
-      <TextSizeProvider>
-        <ThemedNavigation />
-      </TextSizeProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <TextSizeProvider>
+          <LanguageProvider>
+            <ThemedNavigation />
+          </LanguageProvider>
+        </TextSizeProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -16,6 +16,8 @@ import Slider from "@react-native-community/slider";
 import { useTextSize } from "../context/TextSizeContext";
 import { useTheme } from "../context/ThemeContext";
 import { Colors } from "../constants/colors";
+import { useLanguage } from "../context/LanguageContext";
+
 
 export default function SettingsScreen() {
   const navigation = useNavigation<any>();
@@ -26,6 +28,9 @@ export default function SettingsScreen() {
 
   // Text Size (Dynamic scaling)
   const { fontSize, setFontSize } = useTextSize();
+  // Language
+  const { language, toggleLanguage } = useLanguage();
+
 
   // =========================
   // 🔐 LOGOUT FUNCTION
@@ -105,14 +110,15 @@ export default function SettingsScreen() {
 
         {/* Language */}
         <TouchableOpacity
-          style={styles.row}
-          onPress={() => navigation.navigate("Language")}
+        style={styles.row}
+        onPress={toggleLanguage}
         >
-          <Ionicons name="language-outline" size={26} color="#007AFF" />
-          <Text style={[styles.rowText, { color: theme.text, fontSize }]}>
-            言語設定 (日本語 / English)
-          </Text>
+        <Ionicons name="language-outline" size={26} color="#007AFF" />
+        <Text style={[styles.rowText, { color: theme.text, fontSize }]}>
+          Language: {language === "ja" ? "日本語" : "English"}
+        </Text>
         </TouchableOpacity>
+
 
         {/* TEXT SIZE */}
         <View style={styles.row}>
@@ -179,7 +185,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.row}
-          onPress={() => navigation.navigate("Favorites")}
+          onPress={() => navigation.getParent()?.navigate("Favorites")}
         >
           <Ionicons name="heart-outline" size={26} color="#FF3B30" />
           <Text style={[styles.rowText, { color: theme.text, fontSize }]}>
@@ -189,7 +195,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity
           style={styles.row}
-          onPress={() => navigation.navigate("History")}
+          onPress={() => navigation.getParent()?.navigate("History")}
         >
           <Ionicons name="time-outline" size={26} color="#FF9500" />
           <Text style={[styles.rowText, { color: theme.text, fontSize }]}>
